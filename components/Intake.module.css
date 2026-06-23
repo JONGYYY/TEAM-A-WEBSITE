@@ -1,0 +1,84 @@
+.wrap {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.head { margin-bottom: 1.6rem; }
+.track {
+  margin-top: 0.6rem;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ivy-bright), var(--marigold));
+  border-radius: 999px;
+}
+.step h2 { margin-bottom: 0.4rem; }
+.step p { margin-bottom: 1.6rem; max-width: 48ch; }
+
+.gradeRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; }
+.gradeBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 1.4rem 0.5rem;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--hairline-strong);
+  background: var(--paper-raised);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.gradeBtn:hover { transform: translateY(-3px); border-color: var(--ivy-bright); }
+.gradeBtn[data-active="true"] { border-color: var(--ivy); background: var(--paper-sunk); }
+.gradeNum { font-family: var(--font-display); font-size: 2.2rem; color: var(--ink); line-height: 1; }
+.gradeLabel { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); }
+
+.chipGrid { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.actions { margin-top: 1.8rem; display: flex; justify-content: flex-end; }
+
+.cardGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.8rem; }
+.optCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 1.1rem;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--hairline-strong);
+  background: var(--paper-raised);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.optCard:hover { transform: translateY(-3px); border-color: var(--ivy-bright); }
+.optCard[data-active="true"] { border-color: var(--ivy); background: var(--paper-sunk); }
+.optIcon { color: var(--ivy-bright); }
+.optLabel { font-weight: 600; color: var(--ink); font-size: 1rem; }
+.optSub { font-size: 0.82rem; color: var(--ink-faint); }
+.moodEmoji { font-size: 1.6rem; color: var(--marigold); font-family: var(--font-display); }
+
+.stackBtns { display: flex; flex-direction: column; gap: 0.6rem; }
+.rowBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.2rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--hairline-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.rowBtn:hover { transform: translateX(4px); border-color: var(--ivy-bright); color: var(--ink); }
+.rowBtn[data-active="true"] { border-color: var(--ivy); background: var(--paper-sunk); }
+
+@media (max-width: 560px) {
+  .gradeRow { grid-template-columns: repeat(2, 1fr); }
+  .cardGrid { grid-template-columns: 1fr; }
+}
