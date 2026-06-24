@@ -124,16 +124,24 @@ export function calibrateColleges(studentSat: number, interests: string[]): { co
   }).sort((a, b) => b.fit - a.fit);
 }
 
-export interface Scholarship { name: string; amount: string; deadline: string; basis: string; effort: "Low" | "Medium" | "High"; tags: string[] }
+export interface Scholarship { name: string; amount: string; deadline: string; basis: string; effort: "Low" | "Medium" | "High"; tags: string[]; url: string }
 export const SCHOLARSHIPS: Scholarship[] = [
-  { name: "National Merit Scholarship", amount: "$2,500+", deadline: "Fall (PSAT-based)", basis: "Merit", effort: "Low", tags: ["academic"] },
-  { name: "Coca-Cola Scholars Program", amount: "$20,000", deadline: "Oct 31", basis: "Leadership & service", effort: "High", tags: ["leadership", "service"] },
-  { name: "Gates Scholarship", amount: "Full ride", deadline: "Sep 15", basis: "Need + merit (minority students)", effort: "High", tags: ["need", "first-gen"] },
-  { name: "QuestBridge National College Match", amount: "Full ride", deadline: "Sep 26", basis: "High-achieving, low-income", effort: "High", tags: ["need", "first-gen"] },
-  { name: "Burger King Scholars", amount: "$1,000–$60,000", deadline: "Dec 15", basis: "Work + academics + service", effort: "Medium", tags: ["need", "service"] },
-  { name: "Elks Most Valuable Student", amount: "$1,000–$50,000", deadline: "Nov 15", basis: "Need, leadership, scholarship", effort: "Medium", tags: ["need", "leadership"] },
-  { name: "Society of Women Engineers", amount: "$1,000–$15,000", deadline: "Feb / May", basis: "Women in engineering/CS", effort: "Medium", tags: ["engineering", "stem"] },
-  { name: "Horatio Alger Scholarship", amount: "$6,000–$25,000", deadline: "Oct 25", basis: "Adversity + need", effort: "Medium", tags: ["need"] },
+  { name: "National Merit Scholarship", amount: "$2,500+", deadline: "Fall (PSAT-based)", basis: "Merit", effort: "Low", tags: ["academic"], url: "https://www.nationalmerit.org" },
+  { name: "Coca-Cola Scholars Program", amount: "$20,000", deadline: "Oct 31", basis: "Leadership & service", effort: "High", tags: ["leadership", "service"], url: "https://www.coca-colascholarsfoundation.org" },
+  { name: "Gates Scholarship", amount: "Full ride", deadline: "Sep 15", basis: "Need + merit (minority students)", effort: "High", tags: ["need", "first-gen"], url: "https://www.thegatesscholarship.org" },
+  { name: "QuestBridge National College Match", amount: "Full ride", deadline: "Sep 26", basis: "High-achieving, low-income", effort: "High", tags: ["need", "first-gen"], url: "https://www.questbridge.org" },
+  { name: "Burger King Scholars", amount: "$1,000–$60,000", deadline: "Dec 15", basis: "Work + academics + service", effort: "Medium", tags: ["need", "service"], url: "https://bkmclamorefoundation.org" },
+  { name: "Elks Most Valuable Student", amount: "$1,000–$50,000", deadline: "Nov 15", basis: "Need, leadership, scholarship", effort: "Medium", tags: ["need", "leadership"], url: "https://www.elks.org/scholars/scholarships/mvs.cfm" },
+  { name: "Society of Women Engineers", amount: "$1,000–$15,000", deadline: "Feb / May", basis: "Women in engineering/CS", effort: "Medium", tags: ["engineering", "stem"], url: "https://scholarships.swe.org" },
+  { name: "Horatio Alger Scholarship", amount: "$6,000–$25,000", deadline: "Oct 25", basis: "Adversity + need", effort: "Medium", tags: ["need"], url: "https://scholars.horatioalger.org" },
+  { name: "Dell Scholars Program", amount: "$20,000+", deadline: "Dec 1", basis: "Need + determination", effort: "Medium", tags: ["need", "first-gen"], url: "https://www.dellscholars.org" },
+  { name: "Jack Kent Cooke Foundation", amount: "Up to $55,000/yr", deadline: "Nov 20", basis: "High achievement + financial need", effort: "High", tags: ["need", "academic"], url: "https://www.jkcf.org/our-scholarships" },
+  { name: "Davidson Fellows Scholarship", amount: "$10,000–$50,000", deadline: "Feb 13", basis: "Significant project (STEM, arts, lit)", effort: "High", tags: ["academic", "stem"], url: "https://www.davidsongifted.org/fellows-scholarship" },
+  { name: "AXA Achievement Scholarship", amount: "$10,000–$25,000", deadline: "Dec 15", basis: "Leadership & community", effort: "Medium", tags: ["leadership", "service"], url: "https://us.axa.com/axa-foundation/scholarship.html" },
+  { name: "Regeneron Science Talent Search", amount: "Up to $250,000", deadline: "Nov", basis: "Original STEM research", effort: "High", tags: ["stem", "academic"], url: "https://www.societyforscience.org/regeneron-sts" },
+  { name: "Thurgood Marshall College Fund", amount: "Varies", deadline: "Mar 31", basis: "HBCU students, merit + need", effort: "Medium", tags: ["need", "first-gen"], url: "https://tmcf.org/scholarships" },
+  { name: "Hispanic Scholarship Fund", amount: "$500–$5,000", deadline: "Feb 15", basis: "Hispanic heritage + merit", effort: "Low", tags: ["need", "first-gen"], url: "https://www.hsf.net/scholarship" },
+  { name: "Prudential Spirit of Community Award", amount: "$1,000–$5,000", deadline: "Nov 5", basis: "Volunteer service", effort: "Low", tags: ["service"], url: "https://spirit.prudential.com" },
 ];
 
 export interface PlanItem { label: string; type: "course" | "activity" | "test" | "summer" | "milestone" }
