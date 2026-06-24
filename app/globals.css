@@ -4,27 +4,27 @@
    ============================================================ */
 
 :root {
-  /* ---- Light: "Parchment" ---- */
-  --paper: #f4eee1;
-  --paper-raised: #fbf7ee;
-  --paper-sunk: #ece3d1;
-  --ink: #18241e;
-  --ink-soft: #46544c;
-  --ink-faint: #6f7c73;
-  --ivy: #15402e;
-  --ivy-bright: #2e7d5b;
-  --marigold: #da8a2c;
-  --marigold-deep: #b96f17;
-  --clay: #b24a2e;
-  --amber: #c2882b;
-  --hairline: #d8ccb4;
-  --hairline-strong: #c4b495;
-  --shadow-rgb: 18 36 28;
+  /* ---- Light: Purple/Indigo ---- */
+  --paper: #f0eeff;
+  --paper-raised: #ffffff;
+  --paper-sunk: #e6e0ff;
+  --ink: #1a1040;
+  --ink-soft: #4a4470;
+  --ink-faint: #8b85aa;
+  --ivy: #4b35cc;
+  --ivy-bright: #6b50ea;
+  --marigold: #f5a623;
+  --marigold-deep: #d4880f;
+  --clay: #e05555;
+  --amber: #f0a500;
+  --hairline: #ddd8f5;
+  --hairline-strong: #c5bee8;
+  --shadow-rgb: 75 53 204;
 
   /* semantic admission bands */
-  --likely: #2e7d5b;
-  --target: #c2882b;
-  --reach: #b24a2e;
+  --likely: #4b35cc;
+  --target: #f5a623;
+  --reach: #e05555;
 
   /* radii */
   --r-sm: 6px;
@@ -50,25 +50,25 @@
 }
 
 [data-theme="dark"] {
-  --paper: #0f1713;
-  --paper-raised: #16211b;
-  --paper-sunk: #0b110e;
-  --ink: #efe7d5;
-  --ink-soft: #a9b3ab;
-  --ink-faint: #7f8b82;
-  --ivy: #5fb98c;
-  --ivy-bright: #74d4a2;
-  --marigold: #e7a24a;
-  --marigold-deep: #f0b264;
-  --clay: #e0775a;
-  --amber: #e0b057;
-  --hairline: #2a382f;
-  --hairline-strong: #3a4b40;
+  --paper: #0f0a2e;
+  --paper-raised: #1a1245;
+  --paper-sunk: #0a0820;
+  --ink: #ede8ff;
+  --ink-soft: #a89ed4;
+  --ink-faint: #7068a8;
+  --ivy: #8b70ff;
+  --ivy-bright: #a892ff;
+  --marigold: #f5b84a;
+  --marigold-deep: #e0a030;
+  --clay: #ff7070;
+  --amber: #f0c050;
+  --hairline: #2a2060;
+  --hairline-strong: #3a3070;
   --shadow-rgb: 0 0 0;
 
-  --likely: #74d4a2;
-  --target: #e0b057;
-  --reach: #e0775a;
+  --likely: #8b70ff;
+  --target: #f5b84a;
+  --reach: #ff7070;
 }
 
 * {
@@ -284,7 +284,7 @@ textarea.input {
 textarea.input:focus {
   outline: none;
   border-color: var(--ivy-bright);
-  box-shadow: 0 0 0 3px rgb(46 125 91 / 0.15);
+  box-shadow: 0 0 0 3px rgb(107 80 234 / 0.15);
 }
 textarea.input { resize: vertical; min-height: 64px; }
 
