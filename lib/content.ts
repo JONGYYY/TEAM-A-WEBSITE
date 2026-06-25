@@ -96,20 +96,20 @@ export function rankMajors(interests: string[]): { major: Major; fit: number }[]
   }).sort((a, b) => b.fit - a.fit);
 }
 
-export interface College { name: string; loc: string; selectivity: number; avgSat: number; setting: string; strongIn: string[] }
+export interface College { name: string; loc: string; selectivity: number; avgSat: number; setting: string; strongIn: string[]; url: string }
 export const COLLEGES: College[] = [
-  { name: "Stanford University", loc: "California", selectivity: 99, avgSat: 1540, setting: "Suburban", strongIn: ["Computer Technologies", "Engineering", "Business"] },
-  { name: "MIT", loc: "Massachusetts", selectivity: 99, avgSat: 1555, setting: "Urban", strongIn: ["Engineering", "Math and Statistics", "Computer Technologies"] },
-  { name: "Harvard University", loc: "Massachusetts", selectivity: 99, avgSat: 1540, setting: "Urban", strongIn: ["Political Science", "Economics", "Health and Medicine"] },
-  { name: "UC Berkeley", loc: "California", selectivity: 92, avgSat: 1430, setting: "Urban", strongIn: ["Engineering", "Computer Technologies", "Environmental Science"] },
-  { name: "University of Michigan", loc: "Michigan", selectivity: 84, avgSat: 1420, setting: "College Town", strongIn: ["Business", "Engineering", "Psychology"] },
-  { name: "Georgia Tech", loc: "Georgia", selectivity: 82, avgSat: 1430, setting: "Urban", strongIn: ["Engineering", "Computer Technologies", "Science"] },
-  { name: "UT Austin", loc: "Texas", selectivity: 78, avgSat: 1370, setting: "Urban", strongIn: ["Business", "Engineering", "Communications"] },
-  { name: "Boston University", loc: "Massachusetts", selectivity: 70, avgSat: 1380, setting: "Urban", strongIn: ["Communications", "Health and Medicine", "Business"] },
-  { name: "Penn State", loc: "Pennsylvania", selectivity: 60, avgSat: 1280, setting: "College Town", strongIn: ["Engineering", "Business", "Science"] },
-  { name: "Arizona State University", loc: "Arizona", selectivity: 45, avgSat: 1230, setting: "Urban", strongIn: ["Business", "Communications", "Engineering"] },
-  { name: "University of Iowa", loc: "Iowa", selectivity: 40, avgSat: 1230, setting: "College Town", strongIn: ["English", "Health and Medicine", "Education"] },
-  { name: "San Diego State", loc: "California", selectivity: 38, avgSat: 1200, setting: "Urban", strongIn: ["Communications", "Psychology", "Business"] },
+  { name: "Stanford University", loc: "California", selectivity: 99, avgSat: 1540, setting: "Suburban", strongIn: ["Computer Technologies", "Engineering", "Business"], url: "https://www.stanford.edu" },
+  { name: "MIT", loc: "Massachusetts", selectivity: 99, avgSat: 1555, setting: "Urban", strongIn: ["Engineering", "Math and Statistics", "Computer Technologies"], url: "https://www.mit.edu" },
+  { name: "Harvard University", loc: "Massachusetts", selectivity: 99, avgSat: 1540, setting: "Urban", strongIn: ["Political Science", "Economics", "Health and Medicine"], url: "https://www.harvard.edu" },
+  { name: "UC Berkeley", loc: "California", selectivity: 92, avgSat: 1430, setting: "Urban", strongIn: ["Engineering", "Computer Technologies", "Environmental Science"], url: "https://www.berkeley.edu" },
+  { name: "University of Michigan", loc: "Michigan", selectivity: 84, avgSat: 1420, setting: "College Town", strongIn: ["Business", "Engineering", "Psychology"], url: "https://umich.edu" },
+  { name: "Georgia Tech", loc: "Georgia", selectivity: 82, avgSat: 1430, setting: "Urban", strongIn: ["Engineering", "Computer Technologies", "Science"], url: "https://www.gatech.edu" },
+  { name: "UT Austin", loc: "Texas", selectivity: 78, avgSat: 1370, setting: "Urban", strongIn: ["Business", "Engineering", "Communications"], url: "https://www.utexas.edu" },
+  { name: "Boston University", loc: "Massachusetts", selectivity: 70, avgSat: 1380, setting: "Urban", strongIn: ["Communications", "Health and Medicine", "Business"], url: "https://www.bu.edu" },
+  { name: "Penn State", loc: "Pennsylvania", selectivity: 60, avgSat: 1280, setting: "College Town", strongIn: ["Engineering", "Business", "Science"], url: "https://www.psu.edu" },
+  { name: "Arizona State University", loc: "Arizona", selectivity: 45, avgSat: 1230, setting: "Urban", strongIn: ["Business", "Communications", "Engineering"], url: "https://www.asu.edu" },
+  { name: "University of Iowa", loc: "Iowa", selectivity: 40, avgSat: 1230, setting: "College Town", strongIn: ["English", "Health and Medicine", "Education"], url: "https://uiowa.edu" },
+  { name: "San Diego State", loc: "California", selectivity: 38, avgSat: 1200, setting: "Urban", strongIn: ["Communications", "Psychology", "Business"], url: "https://www.sdsu.edu" },
 ];
 
 export type Band = "Reach" | "Target" | "Likely";
@@ -124,16 +124,33 @@ export function calibrateColleges(studentSat: number, interests: string[]): { co
   }).sort((a, b) => b.fit - a.fit);
 }
 
-export interface Scholarship { name: string; amount: string; deadline: string; basis: string; effort: "Low" | "Medium" | "High"; tags: string[] }
+export interface Scholarship { name: string; amount: string; deadline: string; basis: string; effort: "Low" | "Medium" | "High"; tags: string[]; url: string }
 export const SCHOLARSHIPS: Scholarship[] = [
-  { name: "National Merit Scholarship", amount: "$2,500+", deadline: "Fall (PSAT-based)", basis: "Merit", effort: "Low", tags: ["academic"] },
-  { name: "Coca-Cola Scholars Program", amount: "$20,000", deadline: "Oct 31", basis: "Leadership & service", effort: "High", tags: ["leadership", "service"] },
-  { name: "Gates Scholarship", amount: "Full ride", deadline: "Sep 15", basis: "Need + merit (minority students)", effort: "High", tags: ["need", "first-gen"] },
-  { name: "QuestBridge National College Match", amount: "Full ride", deadline: "Sep 26", basis: "High-achieving, low-income", effort: "High", tags: ["need", "first-gen"] },
-  { name: "Burger King Scholars", amount: "$1,000–$60,000", deadline: "Dec 15", basis: "Work + academics + service", effort: "Medium", tags: ["need", "service"] },
-  { name: "Elks Most Valuable Student", amount: "$1,000–$50,000", deadline: "Nov 15", basis: "Need, leadership, scholarship", effort: "Medium", tags: ["need", "leadership"] },
-  { name: "Society of Women Engineers", amount: "$1,000–$15,000", deadline: "Feb / May", basis: "Women in engineering/CS", effort: "Medium", tags: ["engineering", "stem"] },
-  { name: "Horatio Alger Scholarship", amount: "$6,000–$25,000", deadline: "Oct 25", basis: "Adversity + need", effort: "Medium", tags: ["need"] },
+  { name: "National Merit Scholarship", amount: "$2,500+", deadline: "Fall (PSAT-based)", basis: "Merit", effort: "Low", tags: ["academic"], url: "https://www.nationalmerit.org" },
+  { name: "Coca-Cola Scholars Program", amount: "$20,000", deadline: "Oct 31", basis: "Leadership & service", effort: "High", tags: ["leadership", "service"], url: "https://www.coca-colascholarsfoundation.org" },
+  { name: "Gates Scholarship", amount: "Full ride", deadline: "Sep 15", basis: "Need + merit (minority students)", effort: "High", tags: ["need", "first-gen"], url: "https://www.thegatesscholarship.org" },
+  { name: "QuestBridge National College Match", amount: "Full ride", deadline: "Sep 26", basis: "High-achieving, low-income", effort: "High", tags: ["need", "first-gen"], url: "https://www.questbridge.org" },
+  { name: "Ron Brown Scholar Program", amount: "$40,000", deadline: "Jan 9", basis: "Academic excellence + community service", effort: "Medium", tags: ["need", "service", "leadership"], url: "https://www.ronbrown.org/section/apply/program-description" },
+  { name: "Elks Most Valuable Student", amount: "$1,000–$50,000", deadline: "Nov 15", basis: "Need, leadership, scholarship", effort: "Medium", tags: ["need", "leadership"], url: "https://www.elks.org/scholars/scholarships/mvs.cfm" },
+  { name: "Society of Women Engineers", amount: "$1,000–$15,000", deadline: "Feb / May", basis: "Women in engineering/CS", effort: "Medium", tags: ["engineering", "stem"], url: "https://swe.org/scholarships/" },
+  { name: "Horatio Alger Scholarship", amount: "$6,000–$25,000", deadline: "Oct 25", basis: "Adversity + need", effort: "Medium", tags: ["need"], url: "https://www.horatioalger.org/scholarships/" },
+  { name: "Dell Scholars Program", amount: "$20,000+", deadline: "Dec 1", basis: "Need + determination", effort: "Medium", tags: ["need", "first-gen"], url: "https://www.dellscholars.org" },
+  { name: "Jack Kent Cooke Foundation", amount: "Up to $55,000/yr", deadline: "Nov 20", basis: "High achievement + financial need", effort: "High", tags: ["need", "academic"], url: "https://www.jkcf.org/our-scholarships" },
+  { name: "Davidson Fellows Scholarship", amount: "$10,000–$50,000", deadline: "Feb 13", basis: "Significant project (STEM, arts, lit)", effort: "High", tags: ["academic", "stem"], url: "https://www.davidsongifted.org/fellows-scholarship" },
+  { name: "UNCF Scholarships", amount: "Varies", deadline: "Rolling", basis: "African American students, merit + need", effort: "Medium", tags: ["need", "first-gen"], url: "https://www.uncf.org/scholarships" },
+  { name: "Regeneron Science Talent Search", amount: "Up to $250,000", deadline: "Nov", basis: "Original STEM research", effort: "High", tags: ["stem", "academic"], url: "https://www.societyforscience.org/regeneron-sts" },
+  { name: "Thurgood Marshall College Fund", amount: "Varies", deadline: "Mar 31", basis: "HBCU students, merit + need", effort: "Medium", tags: ["need", "first-gen"], url: "https://tmcf.org/scholarships" },
+  { name: "Hispanic Scholarship Fund", amount: "$500–$5,000", deadline: "Feb 15", basis: "Hispanic heritage + merit", effort: "Low", tags: ["need", "first-gen"], url: "https://www.hsf.net/scholarship" },
+  { name: "Prudential Spirit of Community Award", amount: "$1,000–$5,000", deadline: "Nov 5", basis: "Volunteer service", effort: "Low", tags: ["service"], url: "https://www.prudential.com/links/about/spirit-of-community" },
+  { name: "Google Generation Scholarship", amount: "$10,000", deadline: "Dec", basis: "CS students from underrepresented groups", effort: "Medium", tags: ["stem", "engineering"], url: "https://buildyourfuture.withgoogle.com/scholarships/generation-google-scholarship" },
+  { name: "Microsoft Scholarship Program", amount: "Varies", deadline: "Feb", basis: "CS/engineering + community involvement", effort: "Medium", tags: ["stem", "engineering"], url: "https://careers.microsoft.com/v2/global/en/usscholarship.html" },
+  { name: "Foot Locker Scholar Athletes", amount: "$20,000", deadline: "Dec 15", basis: "Athletics + academics + community", effort: "Medium", tags: ["service", "leadership"], url: "https://www.footlocker.com/scholarship" },
+  { name: "American Indian College Fund", amount: "Varies", deadline: "May 31", basis: "Native American heritage + need", effort: "Low", tags: ["need", "first-gen"], url: "https://collegefund.org/students/scholarships/" },
+  { name: "Scholastic Art & Writing Awards", amount: "Varies", deadline: "Dec–Jan", basis: "Creative writing or visual art", effort: "Medium", tags: ["academic"], url: "https://www.artandwriting.org/awards/" },
+  { name: "Jackie Robinson Foundation", amount: "Up to $30,000", deadline: "Feb 1", basis: "Minority students, leadership + need", effort: "High", tags: ["need", "leadership", "first-gen"], url: "https://www.jackierobinson.org/apply/" },
+  { name: "Sallie Mae Scholarship Search", amount: "Varies", deadline: "Rolling", basis: "Open to all students", effort: "Low", tags: ["academic"], url: "https://www.salliemae.com/college-planning/scholarships/" },
+  { name: "AFSA Essay Contest", amount: "$1,000–$2,500", deadline: "Feb", basis: "Essay on foreign service topics", effort: "Low", tags: ["academic", "service"], url: "https://afsa.org/essay-contest" },
+  { name: "Peterson's Scholarship Search", amount: "Varies", deadline: "Rolling", basis: "Open database for all students", effort: "Low", tags: ["academic"], url: "https://www.petersons.com/scholarship-search" },
 ];
 
 export interface PlanItem { label: string; type: "course" | "activity" | "test" | "summer" | "milestone" }

@@ -63,7 +63,20 @@ export default function Colleges() {
                   <motion.div layout key={c.college.name} variants={riseItem} className={p.card} style={{ padding: "1rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: "0.6rem" }}>
                       <div>
-                        <div className={p.rowName}>{c.college.name}</div>
+                        <a
+                          href={c.college.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={p.rowName}
+                          style={{ color: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+                          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+                        >
+                          {c.college.name}
+                          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.5, flexShrink: 0 }}>
+                            <path d="M3.5 1H11M11 1V8.5M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </a>
                         <div className={p.rowSub}>{c.college.loc} · {c.college.setting}</div>
                       </div>
                       <button className={p.saveBtn} data-saved={list.colleges.includes(c.college.name)} onClick={() => save(c.college.name)} aria-label="Save">

@@ -31,8 +31,24 @@ export function TextInput({
 }
 
 export function NumberInput({
-  value, onChange, placeholder, min = 0, max, step,
+  value, onChange, placeholder, min, max, step,
 }: { value: number | null; onChange: (v: number | null) => void; placeholder?: string; min?: number; max?: number; step?: number }) {
+  const [raw, setRaw] = React.useState(value != null ? String(value) : "");
+
+  React.useEffect(() => {
+    setRaw(value != null ? String(value) : "");
+  }, [value]);
+
+  function commit(str: string) {
+    if (str === "") { onChange(null); return; }
+    let n = Number(str);
+    if (Number.isNaN(n)) { setRaw(value != null ? String(value) : ""); return; }
+    if (min != null && n < min) n = min;
+    if (max != null && n > max) n = max;
+    setRaw(String(n));
+    onChange(n);
+  }
+
   return (
     <input
       className="input"
@@ -40,17 +56,10 @@ export function NumberInput({
       min={min}
       max={max}
       step={step}
-      value={value ?? ""}
+      value={raw}
       placeholder={placeholder}
-      onChange={(e) => {
-        const raw = e.target.value;
-        if (raw === "") return onChange(null);
-        let n = Number(raw);
-        if (Number.isNaN(n)) return;
-        if (min != null && n < min) n = min;
-        if (max != null && n > max) n = max;
-        onChange(n);
-      }}
+      onChange={(e) => setRaw(e.target.value)}
+      onBlur={(e) => commit(e.target.value)}
     />
   );
 }
