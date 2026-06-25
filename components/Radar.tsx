@@ -2,7 +2,15 @@
 
 import { motion } from "framer-motion";
 
-export function Radar({ data, size = 280 }: { data: { label: string; value: number }[]; size?: number }) {
+export function Radar({
+  data,
+  size = 280,
+  onSelect,
+}: {
+  data: { label: string; value: number }[];
+  size?: number;
+  onSelect?: (index: number) => void;
+}) {
   const cx = size / 2;
   const cy = size / 2;
   const r = size / 2 - 46;
@@ -49,17 +57,40 @@ export function Radar({ data, size = 280 }: { data: { label: string; value: numb
       })}
       {data.map((d, i) => {
         const [x, y] = point(i, max + 0.55);
+        const clickable = !!onSelect;
         return (
-          <text
+          <g
             key={i}
-            x={x}
-            y={y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.04em", fill: "var(--ink-faint)", textTransform: "uppercase" }}
+            onClick={clickable ? () => onSelect!(i) : undefined}
+            style={clickable ? { cursor: "pointer" } : undefined}
           >
-            {d.label}
-          </text>
+            {clickable && (
+              <rect
+                x={x - 34}
+                y={y - 10}
+                width={68}
+                height={20}
+                rx={10}
+                fill="transparent"
+              />
+            )}
+            <text
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.04em",
+                fill: clickable ? "var(--ink-soft)" : "var(--ink-faint)",
+                textTransform: "uppercase",
+                fontWeight: clickable ? 600 : 400,
+              }}
+            >
+              {d.label}
+            </text>
+          </g>
         );
       })}
     </svg>

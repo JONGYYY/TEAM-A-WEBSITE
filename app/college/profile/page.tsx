@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { stepVariants, easeOut } from "@/lib/motion";
 import { Icon } from "@/components/Icon";
 import { Field, TextInput, NumberInput, Select, ChipMulti } from "@/components/fields";
+import { Combobox, type ComboOption } from "@/components/Combobox";
+import { ResumeImport } from "@/components/ResumeImport";
+import { matchAP } from "@/lib/apMatch";
 import { parseResume, tidyText } from "@/lib/autofill";
 import {
   GENDERS, SCHOOL_YEARS, FIRST_GEN, INCOME_BANDS, GPA_SCALES, RECOGNITION_LEVELS,
-  ACTIVITY_TYPES, AP_SUBJECTS, INTERESTS, REGIONS, INSTITUTION_TYPES,
+  ACTIVITY_TYPES, INTERESTS, REGIONS, INSTITUTION_TYPES,
   SPECIAL_DESIGNATIONS, CAMPUS_CULTURE, SETTINGS, AID_IMPORTANCE, completionPct,
+  NO_PREF, togglePref,
 } from "@/lib/taxonomy";
 import type { StudentProfile } from "@/lib/types";
 import s from "./profile.module.css";
@@ -19,6 +23,20 @@ import s from "./profile.module.css";
 const STEPS = [
   "Basic Information", "Education", "Testing", "Preference", "Awards", "Activities", "Review & Generate",
 ];
+
+async function searchSchools(query: string): Promise<ComboOption[]> {
+  const res = await fetch(`/api/schools?q=${encodeURIComponent(query)}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.schools ?? []).map((s: { name: string; city: string; state: string }) => ({
+    value: s.name,
+    label: s.name,
+    hint: [s.city, s.state].filter(Boolean).join(", "),
+  }));
+}
+
+const AP_MATCH_OPTIONS = (query: string, taken: string[]): ComboOption[] =>
+  matchAP(query).filter((sub) => !taken.includes(sub)).map((sub) => ({ value: sub, label: sub }));
 
 export default function ProfileBuilder() {
   const { profile, setProfile, setAssessment, hydrated } = useStore();
@@ -63,17 +81,25 @@ export default function ProfileBuilder() {
         <div className={s.ledger}>
           <motion.div className={s.ledgerFill} animate={{ width: `${pct}%` }} transition={{ duration: 0.45, ease: easeOut }} />
         </div>
-        <div className={s.dots}>
-          {STEPS.map((_, i) => (
-            <button
-              key={i}
-              className={s.dot}
-              data-state={i + 1 === step ? "active" : i + 1 < step ? "done" : "todo"}
-              onClick={() => go(i + 1)}
-              aria-label={`Go to step ${i + 1}`}
-            />
-          ))}
-        </div>
+        <nav className={s.stepper} aria-label="Profile sections">
+          {STEPS.map((label, i) => {
+            const n = i + 1;
+            const state = n === step ? "active" : n < step ? "done" : "todo";
+            return (
+              <button
+                key={i}
+                type="button"
+                className={s.stepItem}
+                data-state={state}
+                onClick={() => go(n)}
+                aria-current={state === "active" ? "step" : undefined}
+              >
+                <span className={s.stepMark}>{n < step ? <Icon name="check" size={13} /> : n}</span>
+                <span className={s.stepLabel}>{label}</span>
+              </button>
+            );
+          })}
+        </nav>
       </header>
 
       <AnimatePresence mode="wait">
@@ -200,7 +226,17 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
         </div>
       )}
       <div className={s.grid2}>
-        <Field label="School name"><TextInput value={e.school} onChange={(v) => set({ school: v })} placeholder="e.g. Plano West Senior High" /></Field>
+        <Field label="School name" hint="Start typing — pick from the list or enter your own">
+          <Combobox
+            value={e.school}
+            onChange={(v) => set({ school: v })}
+            placeholder="e.g. Plano West Senior High"
+            debounceMs={220}
+            minChars={2}
+            emptyHint="No schools found — keep typing or use your own"
+            getOptions={searchSchools}
+          />
+        </Field>
         <Field label="Country"><TextInput value={e.country} onChange={(v) => set({ country: v })} placeholder="Country" /></Field>
         <Field label="State / Province"><TextInput value={e.state} onChange={(v) => set({ state: v })} placeholder="State" /></Field>
         <Field label="City"><TextInput value={e.city} onChange={(v) => set({ city: v })} placeholder="City" /></Field>
@@ -241,6 +277,13 @@ function StepTesting({ profile, setProfile }: StepProps) {
       return { ...p, testing: { ...p.testing, ap } };
     });
   }
+  function removeAp(idx: number) {
+    setProfile((p) => {
+      let ap = p.testing.ap.filter((_, i) => i !== idx);
+      if (ap.length === 0 || ap[ap.length - 1].subject) ap = [...ap, { subject: "", score: null }];
+      return { ...p, testing: { ...p.testing, ap } };
+    });
+  }
 
   return (
     <div className={s.card}>
@@ -259,19 +302,33 @@ function StepTesting({ profile, setProfile }: StepProps) {
           <div className={s.subhead}>AP / IB subjects</div>
           <div className={s.apList}>
             {t.ap.map((a, i) => {
-              const available = AP_SUBJECTS.filter((sub) => sub === a.subject || !chosenSubjects.includes(sub));
+              const taken = chosenSubjects.filter((sub) => sub !== a.subject);
               return (
                 <div key={i} className={s.apRow}>
-                  <Select value={a.subject} onChange={(v) => setAp(i, { subject: v })} options={available} placeholder="Add AP subject" />
+                  <Combobox
+                    value={a.subject}
+                    onChange={(v) => setAp(i, { subject: v })}
+                    placeholder="Pick or type (e.g. lang, gov, calc bc)"
+                    minChars={0}
+                    allowFreeText={false}
+                    preferUp
+                    emptyHint="No matching AP — try a shorter word"
+                    getOptions={(q) => AP_MATCH_OPTIONS(q, taken)}
+                  />
                   <select className="select" style={{ maxWidth: 120 }} value={a.score ?? ""} onChange={(e) => setAp(i, { score: e.target.value ? Number(e.target.value) : null })}>
                     <option value="">Score</option>
                     {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
+                  {a.subject ? (
+                    <button type="button" className={s.removeBtn} onClick={() => removeAp(i)} aria-label={`Remove ${a.subject}`}>×</button>
+                  ) : (
+                    <span className={s.removeSpacer} aria-hidden />
+                  )}
                 </div>
               );
             })}
           </div>
-          <p className="field-hint">A new row appears automatically — empty rows are ignored. You can&apos;t pick the same subject twice.</p>
+          <p className="field-hint">Type any shorthand — “lang”, “ap gov”, “calc bc” all work. A new row appears automatically; you can&apos;t pick the same subject twice.</p>
         </>
       )}
     </div>
@@ -281,25 +338,64 @@ function StepTesting({ profile, setProfile }: StepProps) {
 /* ---------------- Step 4: Preference ---------------- */
 function StepPreference({ profile, setProfile }: StepProps) {
   const pr = profile.preference;
-  const toggle = (key: keyof typeof pr, v: string) =>
+
+  const toggle = (key: keyof typeof pr, v: string, withNoPref: boolean) =>
     setProfile((p) => {
       const arr = p.preference[key] as string[];
-      const nextArr = arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
+      const nextArr = withNoPref ? togglePref(arr, v) : (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
       return { ...p, preference: { ...p.preference, [key]: nextArr } };
     });
 
   return (
     <div className={s.card}>
-      <Field label="Academic interests"><ChipMulti options={INTERESTS} selected={pr.interests} onToggle={(v) => toggle("interests", v)} /></Field>
-      <Field label="Preferred regions"><ChipMulti options={REGIONS} selected={pr.regions} onToggle={(v) => toggle("regions", v)} /></Field>
-      <Field label="Type of institution"><ChipMulti options={INSTITUTION_TYPES} selected={pr.institutionType} onToggle={(v) => toggle("institutionType", v)} /></Field>
-      <Field label="Campus setting"><ChipMulti options={SETTINGS} selected={pr.setting} onToggle={(v) => toggle("setting", v)} /></Field>
-      <Field label="Campus culture"><ChipMulti options={CAMPUS_CULTURE} selected={pr.campusCulture} onToggle={(v) => toggle("campusCulture", v)} /></Field>
-      <Field label="Special designations"><ChipMulti options={SPECIAL_DESIGNATIONS} selected={pr.specialDesignation} onToggle={(v) => toggle("specialDesignation", v)} /></Field>
-      <Field label="How important is financial aid?">
-        <Select value={pr.financialAidImportance} onChange={(v) => setProfile((p) => ({ ...p, preference: { ...p.preference, financialAidImportance: v } }))} options={AID_IMPORTANCE} />
-      </Field>
+      <p className="field-hint" style={{ marginBottom: "1.4rem" }}>
+        Pick what matters to you. Anything you skip just won&apos;t narrow your matches — choose “No preference” to keep options wide open.
+      </p>
+
+      <div className={s.prefGroups}>
+        <PrefGroup title="Academic interests" note="Drives your major, career, and college matches">
+          <ChipMulti options={INTERESTS} selected={pr.interests} onToggle={(v) => toggle("interests", v, false)} />
+        </PrefGroup>
+
+        <PrefGroup title="Preferred regions" note="Where you'd like to study">
+          <ChipMulti options={[...REGIONS, NO_PREF]} selected={pr.regions} onToggle={(v) => toggle("regions", v, true)} />
+        </PrefGroup>
+
+        <PrefGroup title="Type of institution">
+          <ChipMulti options={[...INSTITUTION_TYPES, NO_PREF]} selected={pr.institutionType} onToggle={(v) => toggle("institutionType", v, true)} />
+        </PrefGroup>
+
+        <PrefGroup title="Campus setting">
+          <ChipMulti options={[...SETTINGS, NO_PREF]} selected={pr.setting} onToggle={(v) => toggle("setting", v, true)} />
+        </PrefGroup>
+
+        <PrefGroup title="Campus culture" note="The vibe you're looking for">
+          <ChipMulti options={[...CAMPUS_CULTURE, NO_PREF]} selected={pr.campusCulture} onToggle={(v) => toggle("campusCulture", v, true)} />
+        </PrefGroup>
+
+        <PrefGroup title="Special designations" note="Optional — communities you're interested in">
+          <ChipMulti options={[...SPECIAL_DESIGNATIONS, NO_PREF]} selected={pr.specialDesignation} onToggle={(v) => toggle("specialDesignation", v, true)} />
+        </PrefGroup>
+
+        <PrefGroup title="How important is financial aid?">
+          <div style={{ maxWidth: 320 }}>
+            <Select value={pr.financialAidImportance} onChange={(v) => setProfile((p) => ({ ...p, preference: { ...p.preference, financialAidImportance: v } }))} options={AID_IMPORTANCE} />
+          </div>
+        </PrefGroup>
+      </div>
     </div>
+  );
+}
+
+function PrefGroup({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+  return (
+    <section className={s.prefGroup}>
+      <div className={s.prefGroupHead}>
+        <span className={s.prefGroupTitle}>{title}</span>
+        {note && <span className={s.prefGroupNote}>{note}</span>}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -318,8 +414,22 @@ function StepAwards({ profile, setProfile }: StepProps) {
     setProfile((p) => ({ ...p, awards: p.awards.length > 1 ? p.awards.filter((_, i) => i !== idx) : p.awards }));
   }
 
+  function importAwards(incoming: typeof profile.awards) {
+    setProfile((p) => {
+      const existing = p.awards.filter((a) => a.title);
+      const seen = new Set(existing.map((a) => a.title.toLowerCase()));
+      const merged = [...existing];
+      for (const a of incoming) {
+        if (a.title && !seen.has(a.title.toLowerCase())) { merged.push(a); seen.add(a.title.toLowerCase()); }
+      }
+      merged.push({ title: "", gradeLevel: "", recognition: "" });
+      return { ...p, awards: merged };
+    });
+  }
+
   return (
     <div className={s.card}>
+      <ResumeImport target="awards" label="Import awards from your résumé" onExtract={(r) => importAwards(r.awards)} />
       <p className="field-hint" style={{ marginBottom: "1rem" }}>Add honors and awards. A new row appears as you go — empty rows are ignored.</p>
       {profile.awards.map((a, i) => (
         <div key={i} className={s.repeatRow}>
@@ -356,8 +466,23 @@ function StepActivities({ profile, setProfile }: StepProps) {
     setProfile((p) => ({ ...p, activities: p.activities.length > 1 ? p.activities.filter((_, i) => i !== idx) : p.activities }));
   }
 
+  function importActivities(incoming: typeof profile.activities) {
+    setProfile((p) => {
+      const key = (a: (typeof profile.activities)[number]) => `${a.organization}|${a.description}`.toLowerCase();
+      const existing = p.activities.filter((a) => a.type || a.organization || a.description);
+      const seen = new Set(existing.map(key));
+      const merged = [...existing];
+      for (const a of incoming) {
+        if ((a.type || a.organization || a.description) && !seen.has(key(a))) { merged.push(a); seen.add(key(a)); }
+      }
+      merged.push({ type: "", position: "", organization: "", grades: [], weeksPerYear: null, hoursPerWeek: null, description: "" });
+      return { ...p, activities: merged };
+    });
+  }
+
   return (
     <div className={s.card}>
+      <ResumeImport target="activities" label="Import activities from your résumé" onExtract={(r) => importActivities(r.activities)} />
       <p className="field-hint" style={{ marginBottom: "1rem" }}>Paste long descriptions freely — use “Tidy with AI” to fit the 150-character limit.</p>
       {profile.activities.map((a, i) => {
         const count = a.description.length;
