@@ -39,6 +39,20 @@ export function NumberInput({
     setRaw(value != null ? String(value) : "");
   }, [value]);
 
+  // Live: allow free typing, but hard-cap at `max` so you can never enter above it.
+  function handleChange(str: string) {
+    if (str === "") { setRaw(""); onChange(null); return; }
+    const n = Number(str);
+    if (!Number.isNaN(n) && max != null && n > max) {
+      setRaw(String(max));
+      onChange(max);
+      return;
+    }
+    setRaw(str);
+    if (!Number.isNaN(n)) onChange(n);
+  }
+
+  // On blur: settle the lower bound and normalize (no mid-typing jump to `min`).
   function commit(str: string) {
     if (str === "") { onChange(null); return; }
     let n = Number(str);
@@ -58,7 +72,7 @@ export function NumberInput({
       step={step}
       value={raw}
       placeholder={placeholder}
-      onChange={(e) => setRaw(e.target.value)}
+      onChange={(e) => handleChange(e.target.value)}
       onBlur={(e) => commit(e.target.value)}
     />
   );

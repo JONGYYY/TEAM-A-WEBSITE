@@ -1,0 +1,56 @@
+.wrap {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 3rem;
+  align-items: center;
+  max-width: 980px;
+  margin: 1rem auto 0;
+  min-height: 60vh;
+}
+.pitch { max-width: 30rem; }
+.h1 { margin: 0.5rem 0 0.8rem; font-size: clamp(2rem, 3.4vw, 3rem); }
+.em { font-style: italic; color: var(--ivy); font-weight: 500; }
+[data-theme="dark"] .em { color: var(--ivy-bright); }
+.sub { font-size: 1.05rem; margin-bottom: 1.6rem; }
+
+.benefits { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.benefits li { display: flex; align-items: center; gap: 0.7rem; color: var(--ink); font-size: 0.95rem; }
+.check {
+  width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%;
+  background: color-mix(in srgb, var(--ivy-bright) 18%, transparent);
+  color: var(--ivy-bright); display: grid; place-items: center;
+}
+
+.card { padding: 2rem; }
+.form { display: flex; flex-direction: column; gap: 0.9rem; }
+.field { display: block; }
+.error {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.84rem; color: var(--clay); font-weight: 500;
+  background: color-mix(in srgb, var(--clay) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--clay) 35%, transparent);
+  border-radius: var(--r-sm); padding: 0.5rem 0.7rem;
+}
+.trust {
+  display: flex; align-items: center; gap: 0.4rem; justify-content: center;
+  font-size: 0.72rem; color: var(--ink-faint); margin-top: 0.2rem;
+}
+.switch {
+  margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--hairline);
+  text-align: center; font-size: 0.9rem; color: var(--ink-soft);
+}
+.switch button {
+  background: none; border: none; cursor: pointer; color: var(--ivy-bright);
+  font-weight: 600; font-size: 0.9rem; font-family: var(--font-ui);
+}
+.switch button:hover { text-decoration: underline; }
+.guest {
+  display: block; width: 100%; margin-top: 0.9rem; background: none; border: none;
+  cursor: pointer; color: var(--ink-faint); font-size: 0.82rem; font-family: var(--font-ui);
+}
+.guest:hover { color: var(--ink-soft); text-decoration: underline; }
+
+@media (max-width: 820px) {
+  .wrap { grid-template-columns: 1fr; gap: 1.8rem; min-height: 0; }
+  .pitch { max-width: none; }
+}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
-import { useLocal } from "@/lib/useLocal";
+import { useUserLocal } from "@/lib/useLocal";
 import { scoreTracks } from "@/lib/content";
 import { PageHeader } from "@/components/PageHeader";
 import { Icon } from "@/components/Icon";
@@ -13,7 +13,7 @@ import p from "@/components/planning.module.css";
 
 export default function Tracks() {
   const { profile, hydrated } = useStore();
-  const [career, , cHydrated] = useLocal<{ pillars: Record<string, number> } | null>("dc.career", null);
+  const [career, , cHydrated] = useUserLocal<{ pillars: Record<string, number> } | null>("career", null);
   const [active, setActive] = useState(0);
   if (!hydrated || !cHydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
 

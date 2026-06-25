@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { QUIZ } from "@/lib/content";
-import { useLocal } from "@/lib/useLocal";
+import { useUserLocal } from "@/lib/useLocal";
 import { PageHeader } from "@/components/PageHeader";
 import { Icon } from "@/components/Icon";
 import { easeOut } from "@/lib/motion";
@@ -18,7 +18,7 @@ const LIKERT = [
 ];
 
 export default function CareerDiscovery() {
-  const [, setCareer] = useLocal<{ pillars: Record<string, number>; completedAt: string } | null>("dc.career", null);
+  const [, setCareer] = useUserLocal<{ pillars: Record<string, number>; completedAt: string } | null>("career", null);
   const [started, setStarted] = useState(false);
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});

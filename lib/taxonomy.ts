@@ -24,6 +24,19 @@ export const CAREER_CLUSTERS = [
   { name: "Law & Government", icon: "scale", blurb: "Law, policy, public affairs." },
 ];
 
+export const NO_PREF = "No preference";
+
+/**
+ * Toggle a value in a multi-select preference array, with a mutually-exclusive
+ * "No preference" sentinel: choosing it clears the rest; choosing anything else
+ * clears it.
+ */
+export function togglePref(arr: string[], v: string): string[] {
+  if (v === NO_PREF) return arr.includes(NO_PREF) ? [] : [NO_PREF];
+  const without = arr.filter((x) => x !== NO_PREF);
+  return without.includes(v) ? without.filter((x) => x !== v) : [...without, v];
+}
+
 export const REGIONS = ["Northeast", "Southeast", "Midwest", "Southwest", "West", "Pacific Northwest", "International"];
 export const INSTITUTION_TYPES = ["Public University", "Private University", "Liberal Arts College", "Community College", "Technical Institute"];
 export const SPECIAL_DESIGNATIONS = ["HBCU", "Women's College", "Religiously Affiliated", "Hispanic-Serving", "Tribal College"];
@@ -45,12 +58,28 @@ export const ACTIVITY_TYPES = [
   "Leadership / Student Govt", "Research", "Work / Internship", "Club / Organization",
   "Competition", "Cultural / Religious", "Other",
 ];
+// Full College Board AP catalog, grouped by discipline.
 export const AP_SUBJECTS = [
-  "AP Biology", "AP Calculus AB", "AP Calculus BC", "AP Chemistry", "AP Computer Science A",
-  "AP English Language", "AP English Literature", "AP Environmental Science", "AP Human Geography",
-  "AP Macroeconomics", "AP Microeconomics", "AP Physics 1", "AP Physics 2", "AP Physics C",
-  "AP Psychology", "AP Statistics", "AP US History", "AP World History", "AP US Government",
-  "AP Spanish Language", "AP Art History", "AP Studio Art",
+  // Arts
+  "AP 2-D Art and Design", "AP 3-D Art and Design", "AP Drawing", "AP Art History", "AP Music Theory",
+  // English
+  "AP English Language", "AP English Literature",
+  // History & Social Science
+  "AP African American Studies", "AP Comparative Government and Politics", "AP European History",
+  "AP Human Geography", "AP Macroeconomics", "AP Microeconomics", "AP Psychology",
+  "AP US Government and Politics", "AP US History", "AP World History: Modern",
+  // Math & Computer Science
+  "AP Calculus AB", "AP Calculus BC", "AP Computer Science A", "AP Computer Science Principles",
+  "AP Precalculus", "AP Statistics",
+  // Sciences
+  "AP Biology", "AP Chemistry", "AP Environmental Science", "AP Physics 1", "AP Physics 2",
+  "AP Physics C: Mechanics", "AP Physics C: Electricity and Magnetism",
+  // World Languages & Cultures
+  "AP Chinese Language and Culture", "AP French Language and Culture", "AP German Language and Culture",
+  "AP Italian Language and Culture", "AP Japanese Language and Culture", "AP Latin",
+  "AP Spanish Language", "AP Spanish Literature",
+  // Capstone
+  "AP Seminar", "AP Research",
 ];
 
 export function emptyProfile(): StudentProfile {

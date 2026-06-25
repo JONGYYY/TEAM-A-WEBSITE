@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
-import { useLocal } from "@/lib/useLocal";
+import { useUserLocal } from "@/lib/useLocal";
 import { SCHOLARSHIPS } from "@/lib/content";
 import { PageHeader } from "@/components/PageHeader";
 import { Icon } from "@/components/Icon";
@@ -28,7 +28,7 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
 
 export default function Scholarships() {
   const { profile, hydrated } = useStore();
-  const [list, setList, lHydrated] = useLocal<Shortlist>("dc.shortlist", { colleges: [], scholarships: [] });
+  const [list, setList, lHydrated] = useUserLocal<Shortlist>("shortlist", { colleges: [], scholarships: [] });
   const [sort, setSort] = useState<"fit" | "deadline" | "amount">("fit");
   const [seed, setSeed] = useState(1);
   const [spinning, setSpinning] = useState(false);

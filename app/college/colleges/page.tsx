@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
-import { useLocal } from "@/lib/useLocal";
+import { useUserLocal } from "@/lib/useLocal";
 import { calibrateColleges, type Band } from "@/lib/content";
 import { PageHeader } from "@/components/PageHeader";
 import { Icon } from "@/components/Icon";
@@ -20,7 +20,7 @@ interface Shortlist { colleges: string[]; scholarships: string[] }
 
 export default function Colleges() {
   const { profile, hydrated } = useStore();
-  const [list, setList, lHydrated] = useLocal<Shortlist>("dc.shortlist", { colleges: [], scholarships: [] });
+  const [list, setList, lHydrated] = useUserLocal<Shortlist>("shortlist", { colleges: [], scholarships: [] });
   if (!hydrated || !lHydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
 
   const interests = Array.from(new Set([...profile.intake.interests, ...profile.preference.interests]));

@@ -32,7 +32,7 @@ const SELECTIVITY: { id: NonNullable<IntakeType["targetSelectivity"]>; label: st
   { id: "most_selective", label: "Most selective (Ivy+)" },
 ];
 
-export function Intake({ onDone }: { onDone: () => void }) {
+export function Intake({ onDone, onLogin }: { onDone: () => void; onLogin?: () => void }) {
   const { profile, setProfile } = useStore();
   const [stepIdx, setStepIdx] = useState(0);
   const [draft, setDraft] = useState<IntakeType>(profile.intake);
@@ -67,6 +67,12 @@ export function Intake({ onDone }: { onDone: () => void }) {
 
   return (
     <div className={s.wrap}>
+      {onLogin && (
+        <div className={s.loginLink}>
+          Returning?{" "}
+          <button onClick={onLogin}>Log in</button>
+        </div>
+      )}
       <div className={s.head}>
         <span className="eyebrow">Get to know you · {stepIdx + 1} of {total}</span>
         <div className={s.track}>

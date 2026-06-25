@@ -1,11 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import type { StudentProfile, AssessmentReport } from "./types";
 import { emptyProfile } from "./taxonomy";
-
-const PROFILE_KEY = "dc.profile";
-const ASSESSMENT_KEY = "dc.assessment";
+import { useAuth } from "./auth";
+import { bucketKey } from "./storageKeys";
 
 interface StoreShape {
   profile: StudentProfile;
@@ -19,28 +18,38 @@ interface StoreShape {
 const StoreContext = createContext<StoreShape | null>(null);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
+  const { email, hydrated: authHydrated } = useAuth();
   const [profile, setProfileState] = useState<StudentProfile>(emptyProfile);
   const [assessment, setAssessmentState] = useState<AssessmentReport | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [loadedEmail, setLoadedEmail] = useState<string | null>(null);
+  const emailRef = useRef(email);
+  emailRef.current = email;
 
+  // Load (or reload) the active account's bucket whenever the session changes.
   useEffect(() => {
+    if (!authHydrated) return;
     try {
-      const raw = localStorage.getItem(PROFILE_KEY);
-      if (raw) setProfileState({ ...emptyProfile(), ...JSON.parse(raw) });
-      const a = localStorage.getItem(ASSESSMENT_KEY);
-      if (a) setAssessmentState(JSON.parse(a));
+      const raw = localStorage.getItem(bucketKey(email, "profile"));
+      setProfileState(raw ? { ...emptyProfile(), ...JSON.parse(raw) } : emptyProfile());
+      const a = localStorage.getItem(bucketKey(email, "assessment"));
+      setAssessmentState(a ? JSON.parse(a) : null);
     } catch {
-      /* ignore */
+      setProfileState(emptyProfile());
+      setAssessmentState(null);
     }
-    setHydrated(true);
-  }, []);
+    setLoadedEmail(email);
+  }, [email, authHydrated]);
+
+  // Not ready until the bucket for the *current* account has been loaded —
+  // prevents a flash of stale data during login/logout transitions.
+  const hydrated = authHydrated && loadedEmail === email;
 
   const setProfile = useCallback((updater: (p: StudentProfile) => StudentProfile) => {
     setProfileState((prev) => {
       const next = updater(prev);
       next.meta = { ...next.meta, updatedAt: new Date().toISOString() };
       try {
-        localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+        localStorage.setItem(bucketKey(emailRef.current, "profile"), JSON.stringify(next));
       } catch {
         /* ignore */
       }
@@ -51,8 +60,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const setAssessment = useCallback((a: AssessmentReport | null) => {
     setAssessmentState(a);
     try {
-      if (a) localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(a));
-      else localStorage.removeItem(ASSESSMENT_KEY);
+      const key = bucketKey(emailRef.current, "assessment");
+      if (a) localStorage.setItem(key, JSON.stringify(a));
+      else localStorage.removeItem(key);
     } catch {
       /* ignore */
     }
@@ -62,8 +72,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setProfileState(emptyProfile());
     setAssessmentState(null);
     try {
-      localStorage.removeItem(PROFILE_KEY);
-      localStorage.removeItem(ASSESSMENT_KEY);
+      localStorage.removeItem(bucketKey(emailRef.current, "profile"));
+      localStorage.removeItem(bucketKey(emailRef.current, "assessment"));
     } catch {
       /* ignore */
     }
