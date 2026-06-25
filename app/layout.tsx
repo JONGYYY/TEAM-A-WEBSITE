@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { fraunces, hanken, splineMono } from "./fonts";
 import { ThemeProvider } from "@/lib/theme";
+import { AuthProvider } from "@/lib/auth";
 import { StoreProvider } from "@/lib/store";
 import { AppShell } from "@/components/AppShell";
 
@@ -20,9 +21,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${fraunces.variable} ${hanken.variable} ${splineMono.variable}`}>
         <ThemeProvider>
-          <StoreProvider>
-            <AppShell>{children}</AppShell>
-          </StoreProvider>
+          <AuthProvider>
+            <StoreProvider>
+              <AppShell>{children}</AppShell>
+            </StoreProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

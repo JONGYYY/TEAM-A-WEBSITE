@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CAREER_CLUSTERS } from "@/lib/taxonomy";
-import { useLocal } from "@/lib/useLocal";
+import { useUserLocal } from "@/lib/useLocal";
 import { PageHeader } from "@/components/PageHeader";
 import { Icon } from "@/components/Icon";
 import { staggerParent, riseItem, easeOut } from "@/lib/motion";
 import p from "@/components/planning.module.css";
 
 export default function Explore() {
-  const [saved, setSaved] = useLocal<string[]>("dc.savedClusters", []);
+  const [saved, setSaved] = useUserLocal<string[]>("savedClusters", []);
   const [filter, setFilter] = useState<"all" | "saved">("all");
   const [open, setOpen] = useState<string | null>(null);
 

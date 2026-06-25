@@ -4,8 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
+import { useUserLocal } from "@/lib/useLocal";
 import { completionPct } from "@/lib/taxonomy";
 import { Intake } from "@/components/Intake";
+import { AuthScreen } from "@/components/AuthScreen";
 import { Icon } from "@/components/Icon";
 import { CountUp } from "@/components/CountUp";
 import { staggerParent, riseItem, scaleIn } from "@/lib/motion";
@@ -20,23 +23,61 @@ const GOAL_NEXT: Record<string, { href: string; label: string }> = {
 
 export default function Dashboard() {
   const { profile, assessment, hydrated } = useStore();
-  const [justFinished, setJustFinished] = useState(false);
+  const { user, hydrated: authHydrated } = useAuth();
+  const [authMode, setAuthMode] = useState<"signup" | "login" | null>(() => {
+    if (typeof window === "undefined") return null;
+    const a = new URLSearchParams(window.location.search).get("auth");
+    return a === "login" || a === "signup" ? a : null;
+  });
+  const [guestSkip, setGuestSkip] = useUserLocal<boolean>("skippedAuth", false);
 
-  if (!hydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
+  if (!hydrated || !authHydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
 
-  const firstRun = !profile.intake.completed;
-  if (firstRun && !justFinished) {
+  // --- Onboarding gate (guests only) ---
+  if (!user) {
+    // Explicit auth view (from a link or the "log in" affordance)
+    if (authMode) {
+      return (
+        <div className="container">
+          <AuthScreen
+            initialMode={authMode}
+            onAuthed={() => setAuthMode(null)}
+            onGuest={authMode === "signup" ? () => { setGuestSkip(true); setAuthMode(null); } : undefined}
+          />
+        </div>
+      );
+    }
+    // Step 1: the get-to-know-you questions (before any account)
+    if (!profile.intake.completed) {
+      return (
+        <div className="container">
+          <FirstRunHero />
+          <div style={{ height: "2.2rem" }} />
+          <Intake onDone={() => {}} onLogin={() => setAuthMode("login")} />
+        </div>
+      );
+    }
+    // Step 2: now ask them to create an account to save it
+    if (!guestSkip) {
+      return (
+        <div className="container">
+          <AuthScreen onAuthed={() => {}} onGuest={() => setGuestSkip(true)} />
+        </div>
+      );
+    }
+  } else if (!profile.intake.completed) {
+    // Signed in but no answers yet (edge case)
     return (
       <div className="container">
         <FirstRunHero />
         <div style={{ height: "2.2rem" }} />
-        <Intake onDone={() => setJustFinished(true)} />
+        <Intake onDone={() => {}} />
       </div>
     );
   }
 
   const pct = completionPct(profile);
-  const name = profile.basic.firstName || "there";
+  const name = profile.basic.firstName || user?.name || "there";
   const grade = profile.intake.grade ?? 11;
   const underclassman = grade <= 10;
   const goalNext = profile.intake.primaryGoal

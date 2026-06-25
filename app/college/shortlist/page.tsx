@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useLocal } from "@/lib/useLocal";
+import { useUserLocal } from "@/lib/useLocal";
 import { COLLEGES, SCHOLARSHIPS } from "@/lib/content";
 import { PageHeader } from "@/components/PageHeader";
 import { Icon } from "@/components/Icon";
@@ -12,7 +12,7 @@ import p from "@/components/planning.module.css";
 interface Shortlist { colleges: string[]; scholarships: string[] }
 
 export default function ShortlistPage() {
-  const [list, setList, hydrated] = useLocal<Shortlist>("dc.shortlist", { colleges: [], scholarships: [] });
+  const [list, setList, hydrated] = useUserLocal<Shortlist>("shortlist", { colleges: [], scholarships: [] });
   if (!hydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
 
   const colleges = COLLEGES.filter((c) => list.colleges.includes(c.name));

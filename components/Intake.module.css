@@ -2,6 +2,17 @@
   max-width: 640px;
   margin: 0 auto;
 }
+.loginLink {
+  text-align: right;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+  margin-bottom: 0.8rem;
+}
+.loginLink button {
+  background: none; border: none; cursor: pointer; font-family: var(--font-ui);
+  color: var(--ivy-bright); font-weight: 600; font-size: 0.85rem;
+}
+.loginLink button:hover { text-decoration: underline; }
 .head { margin-bottom: 1.6rem; }
 .track {
   margin-top: 0.6rem;

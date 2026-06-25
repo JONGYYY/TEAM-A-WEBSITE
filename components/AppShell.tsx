@@ -2,12 +2,12 @@
 
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
-import { useStore } from "@/lib/store";
+import { AccountMenu } from "./AccountMenu";
+import { useAuth } from "@/lib/auth";
 import s from "./Sidebar.module.css";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { profile, hydrated } = useStore();
-  const name = hydrated && profile.basic.firstName ? profile.basic.firstName : null;
+  const { user, hydrated } = useAuth();
 
   return (
     <div className={s.shell}>
@@ -15,8 +15,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className={s.main}>
         <div className={s.topbar}>
           <span className={`${s.topbarSpacer} eyebrow`}>
-            {name ? `Signed in · ${name}` : "Welcome"}
+            {hydrated && user ? `Signed in · ${user.name}` : "Guest mode"}
           </span>
+          <AccountMenu />
           <ThemeToggle />
         </div>
         <div className={s.content}>{children}</div>
