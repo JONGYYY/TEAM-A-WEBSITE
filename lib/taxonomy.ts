@@ -53,6 +53,47 @@ export const INCOME_BANDS = [
 ];
 export const RECOGNITION_LEVELS = ["School", "Regional", "State", "National", "International"];
 export const GPA_SCALES = ["4.0", "5.0", "100", "Other"];
+
+export const US_STATES = [
+  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut",
+  "Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois",
+  "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts",
+  "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
+  "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota",
+  "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
+  "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+  "West Virginia", "Wisconsin", "Wyoming", "Puerto Rico", "Guam", "U.S. Virgin Islands",
+];
+
+const STATE_ABBR: Record<string, string> = {
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado",
+  CT: "Connecticut", DE: "Delaware", DC: "District of Columbia", FL: "Florida", GA: "Georgia",
+  HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas",
+  KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts",
+  MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana",
+  NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico",
+  NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma",
+  OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota",
+  TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington",
+  WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", PR: "Puerto Rico", GU: "Guam",
+};
+
+/** Substring/abbreviation search for US states — partial typing finds the match. */
+export function searchStates(query: string): { value: string; label: string }[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return US_STATES.map((s) => ({ value: s, label: s }));
+  const abbrHit = STATE_ABBR[q.toUpperCase()];
+  const starts: string[] = [];
+  const contains: string[] = [];
+  for (const st of US_STATES) {
+    const l = st.toLowerCase();
+    if (l.startsWith(q)) starts.push(st);
+    else if (l.includes(q)) contains.push(st);
+  }
+  const ordered = [...starts, ...contains];
+  if (abbrHit && !ordered.includes(abbrHit)) ordered.unshift(abbrHit);
+  return ordered.map((s) => ({ value: s, label: s }));
+}
 export const ACTIVITY_TYPES = [
   "Academic", "Athletics / Sports", "Arts / Performing Arts", "Community Service / Volunteer",
   "Leadership / Student Govt", "Research", "Work / Internship", "Club / Organization",

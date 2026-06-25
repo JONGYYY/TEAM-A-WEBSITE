@@ -15,7 +15,7 @@ import {
   GENDERS, SCHOOL_YEARS, FIRST_GEN, INCOME_BANDS, GPA_SCALES, RECOGNITION_LEVELS,
   ACTIVITY_TYPES, INTERESTS, REGIONS, INSTITUTION_TYPES,
   SPECIAL_DESIGNATIONS, CAMPUS_CULTURE, SETTINGS, AID_IMPORTANCE, completionPct,
-  NO_PREF, togglePref,
+  NO_PREF, togglePref, searchStates,
 } from "@/lib/taxonomy";
 import type { StudentProfile } from "@/lib/types";
 import s from "./profile.module.css";
@@ -211,11 +211,26 @@ function StepBasic({ profile, setProfile }: StepProps) {
   );
 }
 
+/* GPA placeholders + input bounds adapt to the selected scale */
+function gpaExamples(scale: string): { unw: string; w: string; maxU?: number; maxW?: number; step: number } {
+  switch (scale) {
+    case "5.0":
+      return { unw: "e.g. 4.6", w: "e.g. 4.9", maxU: 5, maxW: 6, step: 0.01 };
+    case "100":
+      return { unw: "e.g. 95", w: "e.g. 98", maxU: 100, maxW: 110, step: 0.1 };
+    case "Other":
+      return { unw: "Your GPA", w: "Weighted GPA", maxU: undefined, maxW: undefined, step: 0.01 };
+    default: // 4.0
+      return { unw: "e.g. 3.95", w: "e.g. 4.61", maxU: 5, maxW: 6, step: 0.01 };
+  }
+}
+
 /* ---------------- Step 2: Education ---------------- */
 function StepEducation({ profile, setProfile, grade }: StepProps) {
   const e = profile.education;
   const set = (patch: Partial<typeof e>) => setProfile((p) => ({ ...p, education: { ...p.education, ...patch } }));
   const optional = (grade ?? 11) <= 10;
+  const gpaEx = gpaExamples(e.gpaScale);
 
   return (
     <div className={s.card}>
@@ -238,7 +253,16 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
           />
         </Field>
         <Field label="Country"><TextInput value={e.country} onChange={(v) => set({ country: v })} placeholder="Country" /></Field>
-        <Field label="State / Province"><TextInput value={e.state} onChange={(v) => set({ state: v })} placeholder="State" /></Field>
+        <Field label="State / Province" hint="Type part of a state — e.g. “penn”, “NY”">
+          <Combobox
+            value={e.state}
+            onChange={(v) => set({ state: v })}
+            placeholder="e.g. Texas"
+            minChars={0}
+            emptyHint="No matching state — you can type your own"
+            getOptions={(q) => searchStates(q)}
+          />
+        </Field>
         <Field label="City"><TextInput value={e.city} onChange={(v) => set({ city: v })} placeholder="City" /></Field>
         <Field label="Graduating class size" hint="Approximate — must be 0 or more"><NumberInput value={e.classSize} onChange={(v) => set({ classSize: v })} placeholder="e.g. 1390" min={0} /></Field>
         <Field label="Class ranking">
@@ -253,8 +277,8 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
           </label>
         </Field>
         <Field label="GPA scale"><Select value={e.gpaScale} onChange={(v) => set({ gpaScale: v })} options={GPA_SCALES} placeholder="4.0" /></Field>
-        <Field label="Unweighted GPA"><NumberInput value={e.gpaUnweighted} onChange={(v) => set({ gpaUnweighted: v })} placeholder="e.g. 3.95" min={0} max={5} step={0.01} /></Field>
-        <Field label="Weighted GPA"><NumberInput value={e.gpaWeighted} onChange={(v) => set({ gpaWeighted: v })} placeholder="e.g. 4.61" min={0} max={6} step={0.01} /></Field>
+        <Field label="Unweighted GPA"><NumberInput value={e.gpaUnweighted} onChange={(v) => set({ gpaUnweighted: v })} placeholder={gpaEx.unw} min={0} max={gpaEx.maxU} step={gpaEx.step} /></Field>
+        <Field label="Weighted GPA"><NumberInput value={e.gpaWeighted} onChange={(v) => set({ gpaWeighted: v })} placeholder={gpaEx.w} min={0} max={gpaEx.maxW} step={gpaEx.step} /></Field>
       </div>
     </div>
   );
