@@ -3,6 +3,7 @@ import "./globals.css";
 import { fraunces, hanken, splineMono } from "./fonts";
 import { ThemeProvider } from "@/lib/theme";
 import { StoreProvider } from "@/lib/store";
+import { ToastProvider } from "@/lib/toast";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
@@ -21,7 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${fraunces.variable} ${hanken.variable} ${splineMono.variable}`}>
         <ThemeProvider>
           <StoreProvider>
-            <AppShell>{children}</AppShell>
+            <ToastProvider>
+              <AppShell>{children}</AppShell>
+            </ToastProvider>
           </StoreProvider>
         </ThemeProvider>
       </body>

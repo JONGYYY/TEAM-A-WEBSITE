@@ -65,6 +65,27 @@
 .autofillBody { padding: 0 1.1rem 1.1rem; }
 .foundNote { font-size: 0.82rem; color: var(--ivy-bright); font-weight: 500; }
 
+.dropzone {
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  text-align: center;
+  padding: 1.1rem 1rem;
+  border: 1.5px dashed var(--hairline-strong);
+  border-radius: var(--r-md);
+  background: var(--paper-sunk);
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color var(--dur-base) var(--ease-out),
+    background var(--dur-base) var(--ease-out);
+}
+.dropzone:hover { border-color: var(--marigold); }
+.dropzone[data-drag="true"] {
+  border-color: var(--marigold);
+  background: color-mix(in srgb, var(--marigold) 12%, transparent);
+}
+.dropzone u { color: var(--marigold-deep); text-underline-offset: 2px; }
+.dropzone strong { color: var(--ink); }
+
 .subhead {
   font-family: var(--font-display); font-size: 1.1rem; color: var(--ink);
   margin: 1.6rem 0 0.8rem;

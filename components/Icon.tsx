@@ -34,6 +34,15 @@ const PATHS: Record<string, React.ReactNode> = {
   scale: <><path d="M12 3v18M5 21h14M6 7h12M6 7 3 13h6L6 7Zm12 0-3 6h6l-3-6Z" /></>,
   flag: <><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></>,
   warning: <><path d="M12 3 2 20h20L12 3Z" /><path d="M12 10v5M12 18h.01" /></>,
+  search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
+  x: <><path d="M6 6l12 12M18 6 6 18" /></>,
+  download: <><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></>,
+  upload: <><path d="M12 21V9M7 14l5-5 5 5M5 3h14" /></>,
+  target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.4" /></>,
+  command: <><path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6Z" /></>,
+  copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></>,
+  quote: <><path d="M7 7H4v6h5V9c0-1.5 0-2 1-2.5M18 7h-3v6h5V9c0-1.5 0-2 1-2.5" /></>,
+  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
 };
 
 export function Icon({ name, size = 20, className }: { name: string; size?: number; className?: string }) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { QUIZ } from "@/lib/content";
@@ -33,6 +33,18 @@ export default function CareerDiscovery() {
     if (idx + 1 >= QUIZ.length) finish(next);
     else setTimeout(() => setIdx((i) => i + 1), 180);
   }
+
+  // Keyboard support: press 1–5 to answer the current question.
+  useEffect(() => {
+    if (!started) return;
+    function onKey(e: KeyboardEvent) {
+      const n = Number(e.key);
+      if (n >= 1 && n <= 5) { e.preventDefault(); answer(n); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, idx, answers]);
 
   function finish(final: Record<string, number>) {
     const pillars: Record<string, number> = { investigate: 0, create: 0, lead: 0, serve: 0 };
@@ -81,6 +93,9 @@ export default function CareerDiscovery() {
                 </button>
               ))}
             </div>
+            <p className="field-hint" style={{ textAlign: "center", marginTop: "1.2rem" }}>
+              Tip: press <strong>1–5</strong> on your keyboard to answer fast.
+            </p>
           </motion.div>
         </AnimatePresence>
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -16,8 +17,38 @@ const RADAR_LABELS: Record<string, string> = {
 };
 
 export default function AssessmentPage() {
-  const { profile, assessment, hydrated } = useStore();
+  const { profile, assessment, setAssessment, hydrated } = useStore();
+  const [regenerating, setRegenerating] = useState(false);
   if (!hydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
+
+  async function regenerate() {
+    setRegenerating(true);
+    try {
+      const res = await fetch("/api/assess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile }),
+      });
+      const data = await res.json();
+      setAssessment(data.report);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      /* keep existing report on failure */
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
+  function downloadReport() {
+    if (!assessment) return;
+    const blob = new Blob([JSON.stringify(assessment, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "dreamcollege-admissions-evaluation.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const pct = completionPct(profile);
 
@@ -215,8 +246,13 @@ export default function AssessmentPage() {
             {a.actionItems.map((it, i) => <li key={i}>{it}</li>)}
           </ol>
           <div style={{ marginTop: "1.2rem", display: "flex", gap: "0.7rem", flexWrap: "wrap" }}>
-            <Link href="/college/profile" className="btn btn-ghost">Refine profile</Link>
             <Link href="/college/colleges" className="btn btn-primary">See my college list <Icon name="arrow" size={16} /></Link>
+            <Link href="/college/profile" className="btn btn-ghost">Refine profile</Link>
+            <button className="btn btn-ghost" onClick={regenerate} disabled={regenerating}>
+              <Icon name="spark" size={16} /> {regenerating ? "Re-reading…" : "Regenerate"}
+            </button>
+            <button className="btn btn-ghost" onClick={() => window.print()}><Icon name="arrow" size={16} /> Print</button>
+            <button className="btn btn-ghost" onClick={downloadReport}><Icon name="arrow" size={16} /> Download JSON</button>
           </div>
         </div>
       </section>

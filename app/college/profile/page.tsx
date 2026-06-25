@@ -117,11 +117,29 @@ function StepBasic({ profile, setProfile }: StepProps) {
   const [resumeOpen, setResumeOpen] = useState(false);
   const [resumeText, setResumeText] = useState("");
   const [found, setFound] = useState<string[] | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
 
-  function runAutofill() {
-    const { profile: next, found } = parseResume(resumeText, profile);
+  function runAutofill(text = resumeText) {
+    const { profile: next, found } = parseResume(text, profile);
     setProfile(() => next);
     setFound(found);
+  }
+
+  async function ingestFile(file: File | undefined | null) {
+    if (!file) return;
+    setFileName(file.name);
+    // Read whatever text we can. PDFs/DOCX are binary, so we strip to the
+    // readable runs and let the parser pick out GPA/SAT/AP/activities.
+    let raw = "";
+    try {
+      raw = await file.text();
+    } catch {
+      raw = "";
+    }
+    const cleaned = raw.replace(/[^\x09\x0A\x0D\x20-\x7E]+/g, " ");
+    setResumeText(cleaned);
+    runAutofill(cleaned);
   }
 
   return (
@@ -137,15 +155,36 @@ function StepBasic({ profile, setProfile }: StepProps) {
         </div>
         {resumeOpen && (
           <div className={s.autofillBody}>
+            <label
+              className={s.dropzone}
+              data-drag={dragging}
+              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => { e.preventDefault(); setDragging(false); ingestFile(e.dataTransfer.files?.[0]); }}
+            >
+              <input
+                type="file"
+                accept=".txt,.md,.csv,.pdf,.doc,.docx"
+                style={{ display: "none" }}
+                onChange={(e) => ingestFile(e.target.files?.[0])}
+              />
+              <Icon name="sparkle" size={20} />
+              <span>
+                {fileName
+                  ? <><strong>{fileName}</strong> — read. Review your details below.</>
+                  : <>Drop a résumé here or <u>browse</u> — we read .txt, .pdf &amp; .docx.</>}
+              </span>
+            </label>
+            <p className="field-hint" style={{ textAlign: "center", margin: "0.5rem 0" }}>or paste the text directly</p>
             <textarea
               className="input"
-              rows={6}
+              rows={5}
               placeholder="Paste your résumé text here…"
               value={resumeText}
               onChange={(e) => setResumeText(e.target.value)}
             />
             <div className="row" style={{ gap: "0.75rem", marginTop: "0.6rem" }}>
-              <button className="btn btn-ivy" onClick={runAutofill} disabled={!resumeText.trim()}>
+              <button className="btn btn-ivy" onClick={() => runAutofill()} disabled={!resumeText.trim()}>
                 Autofill my profile
               </button>
               {found && (

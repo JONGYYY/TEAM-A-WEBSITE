@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateAssessment } from "@/lib/generateAssessment";
+import { isValidReport } from "@/lib/assessmentSchema";
 import type { StudentProfile } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -7,7 +8,9 @@ export const runtime = "nodejs";
 /**
  * Produces an admissions evaluation. If ANTHROPIC_API_KEY is set, calls Claude
  * with a JSON-first contract; otherwise falls back to a deterministic,
- * profile-aware generator so the product works offline.
+ * profile-aware generator so the product works offline. The LLM output is
+ * validated against the report schema before it is trusted — a malformed
+ * response degrades gracefully to the local generator (PRD §8.4).
  */
 export async function POST(req: Request) {
   const { profile } = (await req.json()) as { profile: StudentProfile };
@@ -16,7 +19,9 @@ export async function POST(req: Request) {
   if (apiKey) {
     try {
       const report = await callClaude(profile, apiKey);
-      if (report) return NextResponse.json({ report, source: "anthropic" });
+      if (report && isValidReport(report)) {
+        return NextResponse.json({ report, source: "anthropic" });
+      }
     } catch {
       /* fall through to local generator */
     }
@@ -41,8 +46,8 @@ async function callClaude(profile: StudentProfile, apiKey: string) {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-latest",
-      max_tokens: 4096,
+      model: "claude-opus-4-8",
+      max_tokens: 8000,
       system,
       messages: [
         {

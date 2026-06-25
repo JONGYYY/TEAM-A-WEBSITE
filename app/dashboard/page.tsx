@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { completionPct } from "@/lib/taxonomy";
+import { rankMajors, scoreTracks, calibrateColleges } from "@/lib/content";
 import { Intake } from "@/components/Intake";
 import { Icon } from "@/components/Icon";
 import { CountUp } from "@/components/CountUp";
+import { useToast } from "@/lib/toast";
+import { downloadBackup, importBackup } from "@/lib/backup";
 import { staggerParent, riseItem, scaleIn } from "@/lib/motion";
 import s from "./dashboard.module.css";
 
@@ -19,8 +22,23 @@ const GOAL_NEXT: Record<string, { href: string; label: string }> = {
 };
 
 export default function Dashboard() {
-  const { profile, assessment, hydrated } = useStore();
+  const { profile, assessment, hydrated, resetAll } = useStore();
+  const { toast } = useToast();
   const [justFinished, setJustFinished] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const n = importBackup(await file.text());
+      toast(`Restored ${n} item${n === 1 ? "" : "s"}. Reloading…`);
+      setTimeout(() => window.location.reload(), 700);
+    } catch {
+      toast("That file isn't a DreamCollege backup.", "warn");
+    }
+  }
 
   if (!hydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
 
@@ -48,6 +66,18 @@ export default function Dashboard() {
 
   const activitiesCount = profile.activities.filter((a) => a.type || a.organization).length;
   const awardsCount = profile.awards.filter((a) => a.title).length;
+
+  // Recent recommendations (PRD return-visit spec), derived from the profile.
+  const recInterests = Array.from(new Set([...profile.intake.interests, ...profile.preference.interests]));
+  const topMajor = recInterests.length ? rankMajors(recInterests)[0] : null;
+  const topTrack = recInterests.length ? scoreTracks(recInterests)[0] : null;
+  const satEquiv = profile.testing.sat ?? (profile.testing.act ? Math.round(profile.testing.act * 44) : 0);
+  const topCollege = recInterests.length ? calibrateColleges(satEquiv, recInterests).find((c) => c.band === "Target") ?? calibrateColleges(satEquiv, recInterests)[0] : null;
+  const recs = [
+    topMajor && { href: "/college/majors", icon: "book", tag: "Major", title: topMajor.major.name, meta: `${topMajor.fit}% fit` },
+    topTrack && { href: "/career/fit-report", icon: topTrack.track.icon, tag: "Career track", title: topTrack.track.name, meta: `${topTrack.fit}% fit` },
+    topCollege && { href: "/college/colleges", icon: "building", tag: topCollege.band, title: topCollege.college.name, meta: `${topCollege.fit}% fit` },
+  ].filter(Boolean) as { href: string; icon: string; tag: string; title: string; meta: string }[];
 
   return (
     <div className="container">
@@ -103,6 +133,46 @@ export default function Dashboard() {
           <Tile href="/career/fit-report" icon="spark" title="Career Fit Map" desc="Your top-3 tracks" />
           <Tile href="/college/scholarships" icon="coins" title="Scholarships" desc="Matched to your profile" />
           <Tile href="/career/planner" icon="calendar" title="4-Year Planner" desc="Your roadmap by grade" />
+        </motion.div>
+
+        {recs.length > 0 && (
+          <motion.div variants={riseItem} style={{ marginTop: "2.4rem" }}>
+            <span className="eyebrow">Recommended for you</span>
+            <div className={s.recGrid}>
+              {recs.map((r) => (
+                <Link key={r.tag} href={r.href} className={`${s.rec} surface`}>
+                  <span className={s.recIcon}><Icon name={r.icon} size={18} /></span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className="tag-mono">{r.tag}</span>
+                    <div className={s.recTitle}>{r.title}</div>
+                  </div>
+                  <span className={s.recMeta}>{r.meta}</span>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onImport} />
+        <motion.div variants={riseItem} className={s.utilRow}>
+          <button className={s.utilBtn} onClick={() => { downloadBackup(); toast("Profile backup downloaded."); }}>
+            <Icon name="download" size={14} /> Export backup
+          </button>
+          <button className={s.utilBtn} onClick={() => fileRef.current?.click()}>
+            <Icon name="upload" size={14} /> Import backup
+          </button>
+          <button
+            className={`${s.utilBtn} ${s.utilDanger}`}
+            onClick={() => {
+              if (confirm("Start over? This clears your profile and assessment on this device.")) {
+                resetAll();
+                setJustFinished(false);
+                toast("Cleared. Fresh start.", "warn");
+              }
+            }}
+          >
+            <Icon name="warning" size={14} /> Start over
+          </button>
         </motion.div>
       </motion.div>
     </div>

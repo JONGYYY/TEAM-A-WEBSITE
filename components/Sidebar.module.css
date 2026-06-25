@@ -142,6 +142,34 @@
 .topbarSpacer { margin-right: auto; }
 .content { padding: 2.4rem 0 5rem; }
 
+.cmdBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--hairline-strong);
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.cmdBtn:hover { border-color: var(--ivy-bright); color: var(--ink); }
+.cmdKbd {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-sm);
+  padding: 0.04rem 0.32rem;
+}
+@media (max-width: 600px) {
+  .cmdBtn span { display: none; }
+}
+
 .mobileNote { display: none; }
 
 @media (max-width: 880px) {
