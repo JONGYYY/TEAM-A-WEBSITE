@@ -2,11 +2,12 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { GUEST, migrateBucket } from "./storageKeys";
+import type { Role } from "./types";
 
 const USERS_KEY = "dc.users";
 const SESSION_KEY = "dc.session";
 
-export type Role = "student" | "counselor";
+export type { Role };
 
 interface StoredUser { name: string; email: string; pass: string; createdAt: string; role?: Role }
 export interface PublicUser { name: string; email: string; role: Role }

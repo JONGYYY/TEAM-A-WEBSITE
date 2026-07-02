@@ -1,5 +1,8 @@
 export type Grade = 9 | 10 | 11 | 12;
 
+/** Account role. Canonical definition shared by auth and quizzes. */
+export type Role = "student" | "counselor";
+
 export interface Intake {
   grade: Grade | null;
   interests: string[];
