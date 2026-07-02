@@ -1,110 +1,133 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { supabase } from "./supabase";
 import { GUEST, migrateBucket } from "./storageKeys";
 import type { Role } from "./types";
 
-const USERS_KEY = "dc.users";
-const SESSION_KEY = "dc.session";
-
 export type { Role };
 
-interface StoredUser { name: string; email: string; pass: string; createdAt: string; role?: Role }
 export interface PublicUser { name: string; email: string; role: Role }
+
+interface AuthResult { ok: boolean; error?: string }
 
 interface AuthShape {
   user: PublicUser | null;
   email: string; // current bucket owner: the user's email or "guest"
-  role: Role; // active account role (defaults to "student" for guests/legacy)
+  role: Role; // active account role (defaults to "student" for guests)
   hydrated: boolean;
-  signup: (name: string, email: string, password: string, role?: Role) => { ok: boolean; error?: string };
-  login: (email: string, password: string) => { ok: boolean; error?: string };
-  logout: () => void;
-  listAccounts: () => PublicUser[];
-  switchTo: (email: string) => boolean;
+  signup: (name: string, email: string, password: string, role?: Role) => Promise<AuthResult>;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthShape | null>(null);
 
-function readUsers(): Record<string, StoredUser> {
-  try { return JSON.parse(localStorage.getItem(USERS_KEY) || "{}"); } catch { return {}; }
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+/** Loads the profile row (name + role) for a signed-in auth user. */
+async function loadProfile(userId: string, email: string): Promise<PublicUser> {
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("name, email, role")
+      .eq("id", userId)
+      .maybeSingle();
+    if (data) return { name: data.name, email: data.email, role: (data.role as Role) ?? "student" };
+  } catch {
+    /* ignore — fall back below */
+  }
+  return { name: email.split("@")[0], email, role: "student" };
 }
-function writeUsers(u: Record<string, StoredUser>) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(u));
-}
-// Not real security — local demo only.
-const hash = (s: string) => (typeof btoa !== "undefined" ? btoa(`dc:${s}`) : s);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    try {
-      const session = localStorage.getItem(SESSION_KEY);
-      if (session) {
-        const users = readUsers();
-        const u = users[session.toLowerCase()];
-        if (u) setUser({ name: u.name, email: u.email, role: u.role ?? "student" });
+    let active = true;
+
+    supabase.auth.getSession().then(async ({ data }) => {
+      const session = data.session;
+      if (session?.user && active) {
+        const p = await loadProfile(session.user.id, session.user.email || "");
+        if (active) setUser(p);
       }
-    } catch {
-      /* ignore */
-    }
-    setHydrated(true);
+      if (active) setHydrated(true);
+    });
+
+    // Defer any Supabase calls out of the callback to avoid the auth lock.
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const { id, email } = session.user;
+        setTimeout(async () => {
+          const p = await loadProfile(id, email || "");
+          if (active) setUser(p);
+        }, 0);
+      } else if (active) {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
-  const signup = useCallback((name: string, emailRaw: string, password: string, role: Role = "student") => {
-    const email = emailRaw.trim().toLowerCase();
-    if (!name.trim()) return { ok: false, error: "Please enter your name." };
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: "Enter a valid email address." };
-    if (password.length < 6) return { ok: false, error: "Password must be at least 6 characters." };
-    const users = readUsers();
-    if (users[email]) return { ok: false, error: "An account with this email already exists. Try logging in." };
+  const signup = useCallback(
+    async (name: string, emailRaw: string, password: string, role: Role = "student"): Promise<AuthResult> => {
+      const email = emailRaw.trim().toLowerCase();
+      if (!name.trim()) return { ok: false, error: "Please enter your name." };
+      if (!EMAIL_RE.test(email)) return { ok: false, error: "Enter a valid email address." };
+      if (password.length < 6) return { ok: false, error: "Password must be at least 6 characters." };
 
-    users[email] = { name: name.trim(), email, pass: hash(password), createdAt: new Date().toISOString(), role };
-    writeUsers(users);
-    migrateBucket(GUEST, email, true); // carry their intake answers into the new account
-    localStorage.setItem(SESSION_KEY, email);
-    setUser({ name: name.trim(), email, role });
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        const msg = /already/i.test(error.message)
+          ? "An account with this email already exists. Try logging in."
+          : error.message;
+        return { ok: false, error: msg };
+      }
+      const uid = data.user?.id;
+      if (!uid) return { ok: false, error: "Could not create the account. Please try again." };
+      if (!data.session) {
+        return { ok: false, error: "Check your email to confirm your account, then log in." };
+      }
+
+      const { error: pErr } = await supabase
+        .from("profiles")
+        .insert({ id: uid, email, name: name.trim(), role });
+      if (pErr && !/duplicate key/i.test(pErr.message)) {
+        return { ok: false, error: pErr.message };
+      }
+
+      migrateBucket(GUEST, email, true); // carry guest intake answers into the new account
+      setUser({ name: name.trim(), email, role });
+      return { ok: true };
+    },
+    []
+  );
+
+  const login = useCallback(async (emailRaw: string, password: string): Promise<AuthResult> => {
+    const email = emailRaw.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) return { ok: false, error: "Email or password is incorrect." };
+    const p = await loadProfile(data.user.id, email);
+    setUser(p);
     return { ok: true };
   }, []);
 
-  const login = useCallback((emailRaw: string, password: string) => {
-    const email = emailRaw.trim().toLowerCase();
-    const users = readUsers();
-    const u = users[email];
-    if (!u || u.pass !== hash(password)) return { ok: false, error: "Email or password is incorrect." };
-    localStorage.setItem(SESSION_KEY, email);
-    setUser({ name: u.name, email: u.email, role: u.role ?? "student" });
-    return { ok: true };
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem(SESSION_KEY);
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setUser(null);
-  }, []);
-
-  // Local-demo convenience: list every account registered in this browser.
-  const listAccounts = useCallback((): PublicUser[] => {
-    const users = readUsers();
-    return Object.values(users).map((u) => ({ name: u.name, email: u.email, role: u.role ?? "student" }));
-  }, []);
-
-  // Switch to another local account without a password (demo only).
-  const switchTo = useCallback((emailRaw: string) => {
-    const target = emailRaw.trim().toLowerCase();
-    const u = readUsers()[target];
-    if (!u) return false;
-    localStorage.setItem(SESSION_KEY, target);
-    setUser({ name: u.name, email: u.email, role: u.role ?? "student" });
-    return true;
   }, []);
 
   const email = user?.email ?? GUEST;
   const role = user?.role ?? "student";
 
   return (
-    <AuthContext.Provider value={{ user, email, role, hydrated, signup, login, logout, listAccounts, switchTo }}>
+    <AuthContext.Provider value={{ user, email, role, hydrated, signup, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -8,16 +8,16 @@ import { QuizGate } from "@/components/QuizGate";
 import { SurveyResultView } from "@/components/SurveyResultView";
 import {
   useQuizData,
+  useRoster,
   getQuizzesByOwner,
   getGroupsByOwner,
   getSubmissions,
-  getQuiz,
   saveSubmission,
   sumScore,
   needsAiGrading,
   displayName,
 } from "@/lib/quizzes";
-import type { Submission, Quiz, QuestionGrade } from "@/lib/types";
+import type { Submission, Quiz, QuestionGrade, Group } from "@/lib/types";
 import s from "../quizzes.module.css";
 
 export default function SubmissionsPage() {
@@ -31,15 +31,24 @@ export default function SubmissionsPage() {
 function Submissions() {
   const { user } = useAuth();
   const email = user!.email;
-  const sync = useQuizData(() => Date.now());
+  useRoster(); // populate the name cache for displayName()
 
-  const quizzes = useMemo(() => getQuizzesByOwner(email), [email, sync]);
-  const groups = useMemo(() => getGroupsByOwner(email), [email, sync]);
-  const ownQuizIds = useMemo(() => new Set(quizzes.map((q) => q.id)), [quizzes]);
-  const submissions = useMemo(
-    () => getSubmissions().filter((sub) => ownQuizIds.has(sub.quizId) && sub.status !== "in_progress"),
-    [ownQuizIds, sync]
+  const { data } = useQuizData(
+    async () => {
+      const [quizzes, groups, allSubs] = await Promise.all([
+        getQuizzesByOwner(email),
+        getGroupsByOwner(email),
+        getSubmissions(),
+      ]);
+      const ownIds = new Set(quizzes.map((q) => q.id));
+      const submissions = allSubs.filter((sub) => ownIds.has(sub.quizId) && sub.status !== "in_progress");
+      return { quizzes, groups, submissions };
+    },
+    { quizzes: [] as Quiz[], groups: [] as Group[], submissions: [] as Submission[] },
+    [email]
   );
+  const { quizzes, groups, submissions } = data;
+  const quizMap = useMemo(() => new Map(quizzes.map((q) => [q.id, q])), [quizzes]);
 
   const [quizFilter, setQuizFilter] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
@@ -54,7 +63,7 @@ function Submissions() {
   }, [submissions, quizFilter, groupFilter, groups]);
 
   const selected = filtered.find((x) => x.id === selId) || filtered[0];
-  const selectedQuiz = selected ? getQuiz(selected.quizId) : undefined;
+  const selectedQuiz = selected ? quizMap.get(selected.quizId) : undefined;
 
   if (submissions.length === 0) {
     return (
@@ -95,7 +104,7 @@ function Submissions() {
       <div className={s.subGrid}>
         <div>
           {filtered.map((sub) => {
-            const quiz = getQuiz(sub.quizId);
+            const quiz = quizMap.get(sub.quizId);
             return (
               <button
                 key={sub.id}
@@ -214,7 +223,7 @@ function QuizReview({ submission, quiz }: { submission: Submission; quiz: Quiz }
     }
   }
 
-  function persist(status: "submitted" | "graded") {
+  async function persist(status: "submitted" | "graded") {
     const gradeList = quiz.questions.map((q) => grades[q.id]);
     const updated: Submission = {
       ...submission,
@@ -225,7 +234,7 @@ function QuizReview({ submission, quiz }: { submission: Submission; quiz: Quiz }
       status,
       gradedAt: status === "graded" ? new Date().toISOString() : submission.gradedAt,
     };
-    saveSubmission(updated);
+    await saveSubmission(updated);
     setSavedMsg(status === "graded" ? "Grade finalized and released to the student." : "Draft grades saved.");
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "./supabase";
 import type {
   Quiz,
   Group,
@@ -14,15 +15,10 @@ import type {
 } from "./types";
 
 /* =========================================================================
-   Shared (non-namespaced) localStorage so counselor + student accounts in the
-   same browser can see each other's data. Local-demo only.
+   Supabase-backed data layer. Accounts and quiz/survey data are shared across
+   devices via Postgres + row-level security, with Realtime for live updates.
    ========================================================================= */
 
-const QUIZZES_KEY = "dc.quizzes";
-const GROUPS_KEY = "dc.groups";
-const ASSIGNMENTS_KEY = "dc.assignments";
-const SUBMISSIONS_KEY = "dc.submissions";
-const USERS_KEY = "dc.users";
 const CHANGE_EVENT = "dc:quizchange";
 
 export interface RosterUser {
@@ -40,25 +36,6 @@ export function uid(prefix = "id"): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function read<T>(key: string): T[] {
-  try {
-    const raw = localStorage.getItem(key);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as T[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function write<T>(key: string, value: T[]) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    notifyQuizChange();
-  } catch {
-    /* ignore */
-  }
-}
-
 /** Notify open components/tabs that quiz data changed so they can re-read. */
 export function notifyQuizChange() {
   try {
@@ -68,148 +45,267 @@ export function notifyQuizChange() {
   }
 }
 
+/* ------------------------------- row mappers ------------------------------ */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function toQuiz(r: any): Quiz {
+  return {
+    id: r.id,
+    ownerEmail: r.owner_email,
+    title: r.title ?? "",
+    description: r.description ?? "",
+    kind: r.kind ?? "quiz",
+    outcomes: r.outcomes ?? undefined,
+    questions: (r.questions ?? []) as Question[],
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+function fromQuiz(q: Quiz) {
+  return {
+    id: q.id,
+    owner_email: q.ownerEmail,
+    title: q.title,
+    description: q.description,
+    kind: q.kind,
+    outcomes: q.outcomes ?? null,
+    questions: q.questions,
+    created_at: q.createdAt,
+    updated_at: q.updatedAt,
+  };
+}
+function toGroup(r: any): Group {
+  return { id: r.id, ownerEmail: r.owner_email, name: r.name, studentEmails: r.student_emails ?? [] };
+}
+function fromGroup(g: Group) {
+  return { id: g.id, owner_email: g.ownerEmail, name: g.name, student_emails: g.studentEmails };
+}
+function toAssignment(r: any): Assignment {
+  return {
+    id: r.id,
+    quizId: r.quiz_id,
+    assignedBy: r.assigned_by,
+    studentEmails: r.student_emails ?? [],
+    groupId: r.group_id ?? undefined,
+    assignedAt: r.assigned_at,
+    dueAt: r.due_at ?? undefined,
+  };
+}
+function toSubmission(r: any): Submission {
+  return {
+    id: r.id,
+    assignmentId: r.assignment_id,
+    quizId: r.quiz_id,
+    studentEmail: r.student_email,
+    answers: (r.answers ?? []) as Answer[],
+    grades: (r.grades ?? []) as QuestionGrade[],
+    status: r.status,
+    score: r.score ?? 0,
+    maxScore: r.max_score ?? 0,
+    feedback: r.feedback ?? undefined,
+    result: (r.result ?? undefined) as SurveyResult | undefined,
+    submittedAt: r.submitted_at ?? undefined,
+    gradedAt: r.graded_at ?? undefined,
+  };
+}
+function fromSubmission(s: Submission) {
+  return {
+    id: s.id,
+    assignment_id: s.assignmentId,
+    quiz_id: s.quizId,
+    student_email: s.studentEmail,
+    answers: s.answers,
+    grades: s.grades,
+    status: s.status,
+    score: s.score,
+    max_score: s.maxScore,
+    feedback: s.feedback ?? null,
+    result: s.result ?? null,
+    submitted_at: s.submittedAt ?? null,
+    graded_at: s.gradedAt ?? null,
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 /* ---------------------------------- roster --------------------------------- */
 
-export function getRoster(): RosterUser[] {
-  try {
-    const raw = localStorage.getItem(USERS_KEY);
-    const obj = raw ? (JSON.parse(raw) as Record<string, { name: string; email: string; role?: Role }>) : {};
-    return Object.values(obj).map((u) => ({ email: u.email, name: u.name, role: u.role ?? "student" }));
-  } catch {
-    return [];
-  }
+// In-memory cache so displayName() can stay synchronous inside render.
+const rosterCache = new Map<string, RosterUser>();
+
+export async function getRoster(): Promise<RosterUser[]> {
+  const { data, error } = await supabase.from("profiles").select("email, name, role");
+  if (error || !data) return [];
+  const roster = data.map((r) => ({ email: r.email, name: r.name, role: (r.role as Role) ?? "student" }));
+  roster.forEach((u) => rosterCache.set(u.email, u));
+  return roster;
 }
 
-export function getStudents(): RosterUser[] {
-  return getRoster().filter((u) => u.role === "student");
+export async function getStudents(): Promise<RosterUser[]> {
+  return (await getRoster()).filter((u) => u.role === "student");
 }
 
+/** Synchronous best-effort display name from the roster cache (falls back to email). */
 export function displayName(email: string): string {
-  const u = getRoster().find((r) => r.email === email);
-  return u?.name || email;
+  return rosterCache.get(email)?.name || email;
 }
 
 /* ---------------------------------- quizzes -------------------------------- */
 
-export function getQuizzes(): Quiz[] {
-  return read<Quiz>(QUIZZES_KEY);
+export async function getQuizzes(): Promise<Quiz[]> {
+  const { data, error } = await supabase.from("quizzes").select("*");
+  if (error || !data) return [];
+  return data.map(toQuiz);
 }
 
-export function getQuizzesByOwner(email: string): Quiz[] {
-  return getQuizzes().filter((q) => q.ownerEmail === email);
+export async function getQuizzesByOwner(email: string): Promise<Quiz[]> {
+  const { data, error } = await supabase.from("quizzes").select("*").eq("owner_email", email);
+  if (error || !data) return [];
+  return data.map(toQuiz);
 }
 
-export function getSurveysByOwner(email: string): Quiz[] {
-  return getQuizzesByOwner(email).filter((q) => q.kind === "survey");
+export async function getSurveysByOwner(email: string): Promise<Quiz[]> {
+  return (await getQuizzesByOwner(email)).filter((q) => q.kind === "survey");
 }
 
-export function getQuiz(id: string): Quiz | undefined {
-  return getQuizzes().find((q) => q.id === id);
+export async function getQuiz(id: string): Promise<Quiz | undefined> {
+  const { data, error } = await supabase.from("quizzes").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return undefined;
+  return toQuiz(data);
 }
 
-export function saveQuiz(quiz: Quiz) {
-  const all = getQuizzes();
-  const idx = all.findIndex((q) => q.id === quiz.id);
-  if (idx >= 0) all[idx] = quiz;
-  else all.push(quiz);
-  write(QUIZZES_KEY, all);
+export async function saveQuiz(quiz: Quiz): Promise<void> {
+  await supabase.from("quizzes").upsert(fromQuiz(quiz));
+  notifyQuizChange();
 }
 
-export function deleteQuiz(id: string) {
-  write(QUIZZES_KEY, getQuizzes().filter((q) => q.id !== id));
-  // cascade: remove assignments + submissions for this quiz
-  write(ASSIGNMENTS_KEY, getAssignments().filter((a) => a.quizId !== id));
-  write(SUBMISSIONS_KEY, getSubmissions().filter((sub) => sub.quizId !== id));
+export async function deleteQuiz(id: string): Promise<void> {
+  // assignments + submissions cascade via FK ON DELETE CASCADE.
+  await supabase.from("quizzes").delete().eq("id", id);
+  notifyQuizChange();
 }
 
 /* ---------------------------------- groups --------------------------------- */
 
-export function getGroups(): Group[] {
-  return read<Group>(GROUPS_KEY);
+export async function getGroups(): Promise<Group[]> {
+  const { data, error } = await supabase.from("groups").select("*");
+  if (error || !data) return [];
+  return data.map(toGroup);
 }
 
-export function getGroupsByOwner(email: string): Group[] {
-  return getGroups().filter((g) => g.ownerEmail === email);
+export async function getGroupsByOwner(email: string): Promise<Group[]> {
+  const { data, error } = await supabase.from("groups").select("*").eq("owner_email", email);
+  if (error || !data) return [];
+  return data.map(toGroup);
 }
 
-export function saveGroup(group: Group) {
-  const all = getGroups();
-  const idx = all.findIndex((g) => g.id === group.id);
-  if (idx >= 0) all[idx] = group;
-  else all.push(group);
-  write(GROUPS_KEY, all);
+export async function saveGroup(group: Group): Promise<void> {
+  await supabase.from("groups").upsert(fromGroup(group));
+  notifyQuizChange();
 }
 
-export function deleteGroup(id: string) {
-  write(GROUPS_KEY, getGroups().filter((g) => g.id !== id));
+export async function deleteGroup(id: string): Promise<void> {
+  await supabase.from("groups").delete().eq("id", id);
+  notifyQuizChange();
 }
 
 /* ------------------------------- assignments ------------------------------- */
 
-export function getAssignments(): Assignment[] {
-  return read<Assignment>(ASSIGNMENTS_KEY);
+export async function getAssignments(): Promise<Assignment[]> {
+  const { data, error } = await supabase.from("assignments").select("*");
+  if (error || !data) return [];
+  return data.map(toAssignment);
 }
 
-export function getAssignment(id: string): Assignment | undefined {
-  return getAssignments().find((a) => a.id === id);
+export async function getAssignment(id: string): Promise<Assignment | undefined> {
+  const { data, error } = await supabase.from("assignments").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return undefined;
+  return toAssignment(data);
 }
 
-export function getAssignmentsByOwner(email: string): Assignment[] {
-  return getAssignments().filter((a) => a.assignedBy === email);
+export async function getAssignmentsByOwner(email: string): Promise<Assignment[]> {
+  const { data, error } = await supabase.from("assignments").select("*").eq("assigned_by", email);
+  if (error || !data) return [];
+  return data.map(toAssignment);
 }
 
-export function getAssignmentsForStudent(email: string): Assignment[] {
-  return getAssignments().filter((a) => a.studentEmails.includes(email));
+export async function getAssignmentsForStudent(email: string): Promise<Assignment[]> {
+  const { data, error } = await supabase.from("assignments").select("*").contains("student_emails", [email]);
+  if (error || !data) return [];
+  return data.map(toAssignment);
 }
 
 /**
- * De-duplicated roster of every student a given counselor has assigned this
- * quiz/survey to (across all assignments). This is the completion denominator,
- * so students who haven't answered yet still appear.
+ * De-duplicated roster of every student a counselor assigned this quiz/survey
+ * to (across all assignments). This is the completion denominator, so students
+ * who haven't answered yet still appear.
  */
-export function getAssignedStudentsForQuiz(quizId: string, ownerEmail: string): string[] {
+export async function getAssignedStudentsForQuiz(quizId: string, ownerEmail: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("assignments")
+    .select("student_emails")
+    .eq("quiz_id", quizId)
+    .eq("assigned_by", ownerEmail);
+  if (error || !data) return [];
   const emails = new Set<string>();
-  getAssignments()
-    .filter((a) => a.quizId === quizId && a.assignedBy === ownerEmail)
-    .forEach((a) => a.studentEmails.forEach((e) => emails.add(e)));
+  data.forEach((a) => (a.student_emails ?? []).forEach((e: string) => emails.add(e)));
   return [...emails];
 }
 
-export function createAssignment(input: Omit<Assignment, "id" | "assignedAt">): Assignment {
-  const assignment: Assignment = { ...input, id: uid("asg"), assignedAt: new Date().toISOString() };
-  write(ASSIGNMENTS_KEY, [...getAssignments(), assignment]);
-  return assignment;
+export async function createAssignment(input: Omit<Assignment, "id" | "assignedAt">): Promise<Assignment> {
+  const row = {
+    id: uid("asg"),
+    quiz_id: input.quizId,
+    assigned_by: input.assignedBy,
+    student_emails: input.studentEmails,
+    group_id: input.groupId ?? null,
+    assigned_at: new Date().toISOString(),
+    due_at: input.dueAt ?? null,
+  };
+  const { data } = await supabase.from("assignments").insert(row).select().maybeSingle();
+  notifyQuizChange();
+  return data ? toAssignment(data) : toAssignment(row);
 }
 
-export function deleteAssignment(id: string) {
-  write(ASSIGNMENTS_KEY, getAssignments().filter((a) => a.id !== id));
-  write(SUBMISSIONS_KEY, getSubmissions().filter((sub) => sub.assignmentId !== id));
+export async function deleteAssignment(id: string): Promise<void> {
+  // submissions cascade via FK ON DELETE CASCADE.
+  await supabase.from("assignments").delete().eq("id", id);
+  notifyQuizChange();
 }
 
 /* ------------------------------- submissions ------------------------------- */
 
-export function getSubmissions(): Submission[] {
-  return read<Submission>(SUBMISSIONS_KEY);
+export async function getSubmissions(): Promise<Submission[]> {
+  const { data, error } = await supabase.from("submissions").select("*");
+  if (error || !data) return [];
+  return data.map(toSubmission);
 }
 
-export function getSubmission(assignmentId: string, studentEmail: string): Submission | undefined {
-  return getSubmissions().find((s) => s.assignmentId === assignmentId && s.studentEmail === studentEmail);
+export async function getSubmission(assignmentId: string, studentEmail: string): Promise<Submission | undefined> {
+  const { data, error } = await supabase
+    .from("submissions")
+    .select("*")
+    .eq("assignment_id", assignmentId)
+    .eq("student_email", studentEmail)
+    .maybeSingle();
+  if (error || !data) return undefined;
+  return toSubmission(data);
 }
 
-export function getSubmissionsForQuiz(quizId: string): Submission[] {
-  return getSubmissions().filter((s) => s.quizId === quizId);
+export async function getSubmissionsForQuiz(quizId: string): Promise<Submission[]> {
+  const { data, error } = await supabase.from("submissions").select("*").eq("quiz_id", quizId);
+  if (error || !data) return [];
+  return data.map(toSubmission);
 }
 
-export function getSubmissionsForAssignment(assignmentId: string): Submission[] {
-  return getSubmissions().filter((s) => s.assignmentId === assignmentId);
+export async function getSubmissionsForAssignment(assignmentId: string): Promise<Submission[]> {
+  const { data, error } = await supabase.from("submissions").select("*").eq("assignment_id", assignmentId);
+  if (error || !data) return [];
+  return data.map(toSubmission);
 }
 
-export function saveSubmission(sub: Submission) {
-  const all = getSubmissions();
-  const idx = all.findIndex((s) => s.id === sub.id);
-  if (idx >= 0) all[idx] = sub;
-  else all.push(sub);
-  write(SUBMISSIONS_KEY, all);
+export async function saveSubmission(sub: Submission): Promise<void> {
+  await supabase.from("submissions").upsert(fromSubmission(sub), { onConflict: "id" });
+  notifyQuizChange();
 }
 
 /* --------------------------------- grading --------------------------------- */
@@ -346,12 +442,29 @@ export function aggregateSurvey(quiz: Quiz, roster: string[], submissions: Submi
   };
 }
 
-/* ------------------------------- react helper ------------------------------ */
+/* ------------------------------- react helpers ----------------------------- */
 
-/** Returns a version counter that bumps whenever quiz data changes (this tab or another). */
+// One shared Realtime channel for all quiz tables → dispatches CHANGE_EVENT.
+let realtimeStarted = false;
+function ensureRealtime() {
+  if (realtimeStarted || typeof window === "undefined") return;
+  realtimeStarted = true;
+  try {
+    const channel = supabase.channel("dc-quiz-changes");
+    for (const table of ["profiles", "quizzes", "groups", "assignments", "submissions"]) {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, () => notifyQuizChange());
+    }
+    channel.subscribe();
+  } catch {
+    realtimeStarted = false;
+  }
+}
+
+/** Returns a version counter that bumps whenever quiz data changes (this tab, another tab, or another device). */
 export function useQuizSync(): number {
   const [version, setVersion] = useState(0);
   useEffect(() => {
+    ensureRealtime();
     const bump = () => setVersion((v) => v + 1);
     window.addEventListener(CHANGE_EVENT, bump);
     window.addEventListener("storage", bump);
@@ -363,9 +476,32 @@ export function useQuizSync(): number {
   return version;
 }
 
-/** Convenience: memoize a reader against the sync version. */
-export function useQuizData<T>(reader: () => T): T {
+/**
+ * Runs an async reader against Supabase, re-running whenever quiz data changes
+ * or a dependency changes. Returns the latest data plus a loading flag.
+ */
+export function useQuizData<T>(reader: () => Promise<T>, initial: T, deps: unknown[] = []): { data: T; loading: boolean } {
+  const [data, setData] = useState<T>(initial);
+  const [loading, setLoading] = useState(true);
+  const readerRef = useRef(reader);
+  readerRef.current = reader;
   const version = useQuizSync();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  return useMemo(reader, [version]);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    readerRef.current()
+      .then((d) => { if (active) { setData(d); setLoading(false); } })
+      .catch(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version, ...deps]);
+
+  return { data, loading };
+}
+
+/** Convenience: preload the roster into the cache so displayName() works in render. */
+export function useRoster(): RosterUser[] {
+  const { data } = useQuizData<RosterUser[]>(() => getRoster(), [], []);
+  return data;
 }

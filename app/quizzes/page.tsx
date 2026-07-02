@@ -17,7 +17,7 @@ import {
   getSubmissionsForQuiz,
   getAssignedStudentsForQuiz,
 } from "@/lib/quizzes";
-import type { Submission, Quiz } from "@/lib/types";
+import type { Submission, Quiz, Assignment } from "@/lib/types";
 import s from "./quizzes.module.css";
 
 export default function QuizzesHome() {
@@ -37,32 +37,43 @@ function Inner() {
 /* --------------------------------- counselor -------------------------------- */
 
 function CounselorHome({ email, name }: { email: string; name: string }) {
-  const data = useQuizData(() => {
-    const quizzes = getQuizzesByOwner(email);
-    const assignments = getAssignmentsByOwner(email);
-    const quizIds = new Set(quizzes.map((q) => q.id));
-    const toReview = assignments
-      .flatMap((a) => getSubmissionsForQuiz(a.quizId))
-      .filter((sub) => quizIds.has(sub.quizId) && sub.status === "submitted").length;
+  const { data } = useQuizData(
+    async () => {
+      const [quizzes, assignments] = await Promise.all([
+        getQuizzesByOwner(email),
+        getAssignmentsByOwner(email),
+      ]);
+      const quizIds = new Set(quizzes.map((q) => q.id));
+      const subsPerAssignment = await Promise.all(assignments.map((a) => getSubmissionsForQuiz(a.quizId)));
+      const toReview = subsPerAssignment
+        .flat()
+        .filter((sub) => quizIds.has(sub.quizId) && sub.status === "submitted").length;
 
-    // survey completion across the owner's surveys
-    let completed = 0;
-    let assigned = 0;
-    quizzes
-      .filter((q) => q.kind === "survey")
-      .forEach((q) => {
-        const roster = getAssignedStudentsForQuiz(q.id, email);
-        assigned += roster.length;
-        const done = new Set(
-          getSubmissionsForQuiz(q.id)
-            .filter((sub) => sub.status !== "in_progress" && sub.result && roster.includes(sub.studentEmail))
-            .map((sub) => sub.studentEmail)
-        );
-        completed += done.size;
-      });
+      // survey completion across the owner's surveys
+      let completed = 0;
+      let assigned = 0;
+      const surveys = quizzes.filter((q) => q.kind === "survey");
+      await Promise.all(
+        surveys.map(async (q) => {
+          const [roster, subs] = await Promise.all([
+            getAssignedStudentsForQuiz(q.id, email),
+            getSubmissionsForQuiz(q.id),
+          ]);
+          assigned += roster.length;
+          const done = new Set(
+            subs
+              .filter((sub) => sub.status !== "in_progress" && sub.result && roster.includes(sub.studentEmail))
+              .map((sub) => sub.studentEmail)
+          );
+          completed += done.size;
+        })
+      );
 
-    return { quizzes: quizzes.length, assignments: assignments.length, toReview, completed, assigned };
-  });
+      return { quizzes: quizzes.length, assignments: assignments.length, toReview, completed, assigned };
+    },
+    { quizzes: 0, assignments: 0, toReview: 0, completed: 0, assigned: 0 },
+    [email]
+  );
 
   const actions = [
     { href: "/quizzes/build", icon: "spark", title: "Build a quiz", desc: "Upload a PDF, DOCX, or paste text — we'll turn it into editable questions." },
@@ -110,11 +121,24 @@ function Stat({ n, label, accent }: { n: number; label: string; accent?: boolean
 /* ---------------------------------- student --------------------------------- */
 
 function StudentHome({ email, name }: { email: string; name: string }) {
-  const rows = useQuizData(() =>
-    getAssignmentsForStudent(email)
-      .map((a) => ({ assignment: a, quiz: getQuiz(a.quizId), submission: getSubmission(a.id, email) }))
-      .filter((r) => r.quiz)
-      .sort((x, y) => (y.assignment.assignedAt > x.assignment.assignedAt ? 1 : -1))
+  const { data: rows } = useQuizData<
+    { assignment: Assignment; quiz: Quiz | undefined; submission: Submission | undefined }[]
+  >(
+    async () => {
+      const assignments = await getAssignmentsForStudent(email);
+      const built = await Promise.all(
+        assignments.map(async (a) => ({
+          assignment: a,
+          quiz: await getQuiz(a.quizId),
+          submission: await getSubmission(a.id, email),
+        }))
+      );
+      return built
+        .filter((r) => r.quiz)
+        .sort((x, y) => (y.assignment.assignedAt > x.assignment.assignedAt ? 1 : -1));
+    },
+    [],
+    [email]
   );
 
   return (

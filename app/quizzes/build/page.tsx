@@ -48,8 +48,9 @@ function Builder() {
 
   useEffect(() => {
     if (!editId) return;
-    const q = getQuiz(editId);
-    if (q) {
+    let active = true;
+    getQuiz(editId).then((q) => {
+      if (!q || !active) return;
       setKind(q.kind || "quiz");
       setTitle(q.title);
       setDescription(q.description);
@@ -57,7 +58,8 @@ function Builder() {
       setQuestions(q.questions);
       setCreatedAt(q.createdAt);
       setSavedId(q.id);
-    }
+    });
+    return () => { active = false; };
   }, [editId]);
 
   function onExtract(r: { kind?: QuizKind; title: string; outcomes?: SurveyOutcome[]; questions: Question[] }) {
@@ -94,7 +96,7 @@ function Builder() {
     })));
   }
 
-  function save(): string | null {
+  async function save(): Promise<string | null> {
     setError(null);
     const cleaned = questions
       .map((q) => ({ ...q, prompt: q.prompt.trim() }))
@@ -118,7 +120,7 @@ function Builder() {
       createdAt: createdAt || now,
       updatedAt: now,
     };
-    saveQuiz(quiz);
+    await saveQuiz(quiz);
     setSavedId(id);
     setCreatedAt(quiz.createdAt);
     setQuestions(cleaned);
@@ -126,8 +128,8 @@ function Builder() {
     return id;
   }
 
-  function saveAndAssign() {
-    const id = save();
+  async function saveAndAssign() {
+    const id = await save();
     if (id) router.push(`/quizzes/assignments?quiz=${id}`);
   }
 

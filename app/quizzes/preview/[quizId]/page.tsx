@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { QuizGate } from "@/components/QuizGate";
 import { QuizRunner } from "@/components/QuizRunner";
 import { useQuizData, getQuiz } from "@/lib/quizzes";
+import type { Quiz } from "@/lib/types";
 
 export default function PreviewPage({ params }: { params: { quizId: string } }) {
   return (
@@ -16,7 +17,17 @@ export default function PreviewPage({ params }: { params: { quizId: string } }) 
 
 function Preview({ quizId }: { quizId: string }) {
   const { user } = useAuth();
-  const quiz = useQuizData(() => getQuiz(quizId));
+  const { data: quiz, loading } = useQuizData<Quiz | undefined>(() => getQuiz(quizId), undefined, [quizId]);
+
+  if (loading) {
+    return (
+      <div className="container">
+        <div className="surface" style={{ textAlign: "center", padding: "3rem 2rem", maxWidth: 560, margin: "2rem auto 0" }}>
+          <p className="muted">Loading…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!quiz || quiz.ownerEmail !== user!.email) {
     return (

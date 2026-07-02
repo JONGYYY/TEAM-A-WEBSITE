@@ -12,6 +12,7 @@ import { SurveyResultView } from "@/components/SurveyResultView";
 import { staggerParent, riseItem } from "@/lib/motion";
 import {
   useQuizData,
+  useRoster,
   getSurveysByOwner,
   getGroupsByOwner,
   getAssignedStudentsForQuiz,
@@ -20,6 +21,7 @@ import {
   aggregateSurvey,
   displayName,
 } from "@/lib/quizzes";
+import type { Quiz, Group, Submission } from "@/lib/types";
 import s from "../quizzes.module.css";
 
 export default function ResultsPage() {
@@ -33,10 +35,17 @@ export default function ResultsPage() {
 function Results() {
   const { user } = useAuth();
   const email = user!.email;
-  const sync = useQuizData(() => Date.now());
+  useRoster(); // populate the name cache so displayName() works in render
 
-  const surveys = useMemo(() => getSurveysByOwner(email), [email, sync]);
-  const groups = useMemo(() => getGroupsByOwner(email), [email, sync]);
+  const { data: base } = useQuizData(
+    async () => {
+      const [surveys, groups] = await Promise.all([getSurveysByOwner(email), getGroupsByOwner(email)]);
+      return { surveys, groups };
+    },
+    { surveys: [] as Quiz[], groups: [] as Group[] },
+    [email]
+  );
+  const { surveys, groups } = base;
 
   const [surveyId, setSurveyId] = useState("");
   const [groupFilter, setGroupFilter] = useState("all");
@@ -46,16 +55,25 @@ function Results() {
     setSurveyId((cur) => (surveys.some((q) => q.id === cur) ? cur : surveys[0]?.id || ""));
   }, [surveys]);
 
-  const quiz = useMemo(() => (surveyId ? getQuiz(surveyId) : undefined), [surveyId, sync]);
+  const { data: detail } = useQuizData(
+    async () => {
+      if (!surveyId) return { quiz: undefined as Quiz | undefined, baseRoster: [] as string[], submissions: [] as Submission[] };
+      const [quiz, baseRoster, submissions] = await Promise.all([
+        getQuiz(surveyId),
+        getAssignedStudentsForQuiz(surveyId, email),
+        getSubmissionsForQuiz(surveyId),
+      ]);
+      return { quiz, baseRoster, submissions };
+    },
+    { quiz: undefined as Quiz | undefined, baseRoster: [] as string[], submissions: [] as Submission[] },
+    [surveyId, email]
+  );
+  const { quiz, baseRoster, submissions } = detail;
 
   const roster = useMemo(() => {
-    if (!surveyId) return [];
-    const base = getAssignedStudentsForQuiz(surveyId, email);
     const group = groups.find((g) => g.id === groupFilter);
-    return group ? base.filter((e) => group.studentEmails.includes(e)) : base;
-  }, [surveyId, email, groupFilter, groups, sync]);
-
-  const submissions = useMemo(() => (surveyId ? getSubmissionsForQuiz(surveyId) : []), [surveyId, sync]);
+    return group ? baseRoster.filter((e) => group.studentEmails.includes(e)) : baseRoster;
+  }, [baseRoster, groupFilter, groups]);
 
   const subByStudent = useMemo(() => {
     const map = new Map<string, (typeof submissions)[number]>();

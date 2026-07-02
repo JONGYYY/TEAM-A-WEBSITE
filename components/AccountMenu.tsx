@@ -8,7 +8,7 @@ import { Icon } from "./Icon";
 import s from "./AccountMenu.module.css";
 
 export function AccountMenu() {
-  const { user, logout, hydrated, listAccounts, switchTo } = useAuth();
+  const { user, logout, hydrated } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -32,13 +32,11 @@ export function AccountMenu() {
   }
 
   const initial = user.name.charAt(0).toUpperCase();
-  const others = listAccounts().filter((a) => a.email !== user.email);
 
-  function handleSwitch(email: string, role: string) {
-    if (switchTo(email)) {
-      setOpen(false);
-      router.push(role === "counselor" ? "/quizzes" : "/dashboard");
-    }
+  async function handleLogout() {
+    await logout();
+    setOpen(false);
+    router.push("/dashboard");
   }
 
   return (
@@ -60,34 +58,8 @@ export function AccountMenu() {
             <span className={s.roleBadge} data-role={user.role}>{user.role}</span>
           </div>
 
-          {others.length > 0 && (
-            <div className={s.section}>
-              <div className={s.sectionLabel}>Switch account</div>
-              {others.map((a) => (
-                <button key={a.email} className={s.menuItem} onClick={() => handleSwitch(a.email, a.role)}>
-                  <span className={s.miniAvatar}>{a.name.charAt(0).toUpperCase()}</span>
-                  <span className={s.switchInfo}>
-                    <span className={s.switchName}>{a.name}</span>
-                    <span className={s.switchEmail}>{a.email}</span>
-                  </span>
-                  <span className={s.roleBadge} data-role={a.role}>{a.role}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
           <div className={s.section}>
-            <Link href="/dashboard?auth=signup" className={s.menuItem} onClick={() => setOpen(false)}>
-              <Icon name="spark" size={15} /> Add another account
-            </Link>
-            <button
-              className={s.menuItem}
-              onClick={() => {
-                logout();
-                setOpen(false);
-                router.push("/dashboard");
-              }}
-            >
+            <button className={s.menuItem} onClick={handleLogout}>
               <Icon name="lock" size={15} /> Log out
             </button>
           </div>

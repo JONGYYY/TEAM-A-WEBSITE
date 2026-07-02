@@ -17,7 +17,7 @@ import {
   scoreSurvey,
   uid,
 } from "@/lib/quizzes";
-import type { Answer, Submission, Quiz } from "@/lib/types";
+import type { Answer, Submission, Quiz, Assignment } from "@/lib/types";
 import s from "../../quizzes.module.css";
 
 export default function TakePage({ params }: { params: { assignmentId: string } }) {
@@ -32,15 +32,34 @@ function Take({ assignmentId }: { assignmentId: string }) {
   const { user } = useAuth();
   const email = user!.email;
 
-  const data = useQuizData(() => {
-    const assignment = getAssignment(assignmentId);
-    const quiz = assignment ? getQuiz(assignment.quizId) : undefined;
-    const submission = getSubmission(assignmentId, email);
-    return { assignment, quiz, submission };
-  });
+  const { data, loading } = useQuizData(
+    async () => {
+      const assignment = await getAssignment(assignmentId);
+      const [quiz, submission] = await Promise.all([
+        assignment ? getQuiz(assignment.quizId) : Promise.resolve(undefined),
+        getSubmission(assignmentId, email),
+      ]);
+      return { assignment, quiz, submission };
+    },
+    {
+      assignment: undefined as Assignment | undefined,
+      quiz: undefined as Quiz | undefined,
+      submission: undefined as Submission | undefined,
+    },
+    [assignmentId, email]
+  );
 
   const { assignment, quiz, submission } = data;
 
+  if (loading) {
+    return (
+      <div className="container">
+        <div className="surface" style={{ textAlign: "center", padding: "3rem 2rem", maxWidth: 560, margin: "2rem auto 0" }}>
+          <p className="muted">Loading your quiz…</p>
+        </div>
+      </div>
+    );
+  }
   if (!assignment || !quiz) {
     return <NotFound message="This quiz could not be found. It may have been removed." />;
   }
@@ -48,7 +67,7 @@ function Take({ assignmentId }: { assignmentId: string }) {
     return <NotFound message="This quiz isn't assigned to your account." />;
   }
 
-  function handleSubmit(answers: Answer[]) {
+  async function handleSubmit(answers: Answer[]) {
     if (!quiz) return;
     const now = new Date().toISOString();
     if (isSurvey(quiz)) {
@@ -67,7 +86,7 @@ function Take({ assignmentId }: { assignmentId: string }) {
         submittedAt: now,
         gradedAt: now,
       };
-      saveSubmission(sub);
+      await saveSubmission(sub);
       return;
     }
     const { grades, maxScore } = autoGrade(quiz, answers);
@@ -83,7 +102,7 @@ function Take({ assignmentId }: { assignmentId: string }) {
       maxScore,
       submittedAt: now,
     };
-    saveSubmission(sub);
+    await saveSubmission(sub);
   }
 
   // Already submitted or graded -> result view

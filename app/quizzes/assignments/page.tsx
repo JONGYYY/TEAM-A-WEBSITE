@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { Icon } from "@/components/Icon";
@@ -11,7 +11,7 @@ import {
   getQuizzesByOwner,
   getGroupsByOwner,
   getStudents,
-  getAssignments,
+  getAssignmentsByOwner,
   createAssignment,
   deleteAssignment,
   saveGroup,
@@ -19,9 +19,18 @@ import {
   getSubmissionsForAssignment,
   displayName,
   uid,
+  type RosterUser,
 } from "@/lib/quizzes";
-import type { Group } from "@/lib/types";
+import type { Group, Quiz, Assignment } from "@/lib/types";
 import s from "../quizzes.module.css";
+
+type AssignmentsData = {
+  quizzes: Quiz[];
+  groups: Group[];
+  students: RosterUser[];
+  assignments: Assignment[];
+  doneCounts: Record<string, number>;
+};
 
 export default function AssignmentsPage() {
   return (
@@ -34,12 +43,28 @@ export default function AssignmentsPage() {
 function Assignments() {
   const { user } = useAuth();
   const email = user!.email;
-  const sync = useQuizData(() => Date.now()); // bump dependency on any change
 
-  const quizzes = useMemo(() => getQuizzesByOwner(email), [email, sync]);
-  const groups = useMemo(() => getGroupsByOwner(email), [email, sync]);
-  const students = useMemo(() => getStudents(), [sync]);
-  const assignments = useMemo(() => getAssignments().filter((a) => a.assignedBy === email), [email, sync]);
+  const { data } = useQuizData<AssignmentsData>(
+    async () => {
+      const [quizzes, groups, students, assignments] = await Promise.all([
+        getQuizzesByOwner(email),
+        getGroupsByOwner(email),
+        getStudents(),
+        getAssignmentsByOwner(email),
+      ]);
+      const doneCounts: Record<string, number> = {};
+      await Promise.all(
+        assignments.map(async (a) => {
+          const subs = await getSubmissionsForAssignment(a.id);
+          doneCounts[a.id] = subs.filter((x) => x.status !== "in_progress").length;
+        })
+      );
+      return { quizzes, groups, students, assignments, doneCounts };
+    },
+    { quizzes: [], groups: [], students: [], assignments: [], doneCounts: {} },
+    [email]
+  );
+  const { quizzes, groups, students, assignments, doneCounts } = data;
 
   const [quizId, setQuizId] = useState<string>("");
   const [selStudents, setSelStudents] = useState<Set<string>>(new Set());
@@ -70,13 +95,13 @@ function Assignments() {
     return [...emails];
   }
 
-  function assign() {
+  async function assign() {
     setErr(null); setMsg(null);
     if (!quizId) { setErr("Pick a quiz to assign."); return; }
     const emails = resolveEmails();
     if (emails.length === 0) { setErr("Select at least one student or group."); return; }
     const onlyGroup = selStudents.size === 0 && selGroups.size === 1 ? [...selGroups][0] : undefined;
-    createAssignment({ quizId, assignedBy: email, studentEmails: emails, groupId: onlyGroup });
+    await createAssignment({ quizId, assignedBy: email, studentEmails: emails, groupId: onlyGroup });
     setSelStudents(new Set());
     setSelGroups(new Set());
     setMsg(`Assigned to ${emails.length} student${emails.length === 1 ? "" : "s"}.`);
@@ -127,8 +152,8 @@ function Assignments() {
               <span className={s.emptyIcon}><Icon name="user" size={22} /></span>
               <h3>No student accounts yet</h3>
               <p className="muted">
-                This is a local demo — students must sign up in <strong>this browser</strong>. Open the app in a new tab,
-                create an account with the <em>Student</em> role, then come back here.
+                Students who sign up with the <em>Student</em> role — on any device — will show up here automatically.
+                Share the site link and ask them to create a student account.
               </p>
             </div>
           ) : (
@@ -197,7 +222,7 @@ function Assignments() {
             <div style={{ marginTop: "1.6rem" }}>
               <span className="field-label">Assigned so far</span>
               {quizAssignments.map((a) => {
-                const done = getSubmissionsForAssignment(a.id).filter((x) => x.status !== "in_progress").length;
+                const done = doneCounts[a.id] ?? 0;
                 const allDone = done >= a.studentEmails.length && a.studentEmails.length > 0;
                 return (
                   <div key={a.id} className={s.checkRow}>
@@ -217,22 +242,20 @@ function Assignments() {
         </section>
 
         {/* Groups panel */}
-        <GroupManager email={email} groups={groups} />
+        <GroupManager email={email} groups={groups} students={students} />
       </div>
     </div>
   );
 }
 
-function GroupManager({ email, groups }: { email: string; groups: Group[] }) {
-  const sync = useQuizData(() => Date.now());
-  const students = useMemo(() => getStudents(), [sync]);
+function GroupManager({ email, groups, students }: { email: string; groups: Group[]; students: RosterUser[] }) {
   const [name, setName] = useState("");
   const [members, setMembers] = useState<Set<string>>(new Set());
 
-  function create() {
+  async function create() {
     if (!name.trim() || members.size === 0) return;
     const g: Group = { id: uid("grp"), ownerEmail: email, name: name.trim(), studentEmails: [...members] };
-    saveGroup(g);
+    await saveGroup(g);
     setName("");
     setMembers(new Set());
   }

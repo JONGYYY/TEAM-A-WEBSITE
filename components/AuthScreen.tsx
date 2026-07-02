@@ -37,14 +37,19 @@ export function AuthScreen({
   const grade = profile.intake.grade;
   const goalHook = profile.intake.primaryGoal ? GOAL_HOOK[profile.intake.primaryGoal] : "your personalized plan";
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    const res = mode === "signup" ? signup(name, email, password, role) : login(email, password);
-    setBusy(false);
-    if (res.ok) onAuthed();
-    else setError(res.error ?? "Something went wrong.");
+    try {
+      const res = mode === "signup" ? await signup(name, email, password, role) : await login(email, password);
+      if (res.ok) onAuthed();
+      else setError(res.error ?? "Something went wrong.");
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -127,7 +132,7 @@ export function AuthScreen({
           </button>
 
           {mode === "signup" && (
-            <p className={s.trust}><Icon name="shield" size={13} /> Free forever · stored on your device · no spam</p>
+            <p className={s.trust}><Icon name="shield" size={13} /> Free forever · saved securely · no spam</p>
           )}
         </form>
 
