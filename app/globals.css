@@ -20,6 +20,7 @@
   --hairline: #ddd8f5;
   --hairline-strong: #c5bee8;
   --shadow-rgb: 75 53 204;
+  --focus-rgb: 107 80 234;
 
   /* semantic admission bands */
   --likely: #4b35cc;
@@ -65,6 +66,7 @@
   --hairline: #2a2060;
   --hairline-strong: #3a3070;
   --shadow-rgb: 0 0 0;
+  --focus-rgb: 168 146 255;
 
   --likely: #8b70ff;
   --target: #f5b84a;
@@ -284,7 +286,7 @@ textarea.input {
 textarea.input:focus {
   outline: none;
   border-color: var(--ivy-bright);
-  box-shadow: 0 0 0 3px rgb(107 80 234 / 0.15);
+  box-shadow: 0 0 0 3px rgb(var(--focus-rgb) / 0.18);
 }
 textarea.input { resize: vertical; min-height: 64px; }
 
@@ -334,4 +336,19 @@ textarea.input { resize: vertical; min-height: 64px; }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---------- Print: clean exports for "Export PDF" actions ---------- */
+@media print {
+  .no-print { display: none !important; }
+  body::before { display: none !important; }
+  body { background: #fff; color: #000; }
+  .print-content { padding: 0 !important; }
+  .container { max-width: none; padding: 0; }
+  .surface, .well {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .btn { display: none !important; }
+  a[href]::after { content: ""; }
 }

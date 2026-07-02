@@ -4,6 +4,7 @@ import { fraunces, hanken, splineMono } from "./fonts";
 import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider } from "@/lib/auth";
 import { StoreProvider } from "@/lib/store";
+import { ToastProvider } from "@/lib/toast";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <AuthProvider>
             <StoreProvider>
-              <AppShell>{children}</AppShell>
+              <ToastProvider>
+                <AppShell>{children}</AppShell>
+              </ToastProvider>
             </StoreProvider>
           </AuthProvider>
         </ThemeProvider>

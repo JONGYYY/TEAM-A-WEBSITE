@@ -34,6 +34,7 @@ const STUDENT_NAV: NavSection[] = [
     label: "College Planning",
     items: [
       { href: "/college/profile", icon: "user", name: "College Profile" },
+      { href: "/college/positioning", icon: "quote", name: "Positioning Statement" },
       { href: "/college/majors", icon: "book", name: "Majors" },
       { href: "/college/colleges", icon: "building", name: "Colleges" },
       { href: "/college/scholarships", icon: "coins", name: "Scholarships" },
