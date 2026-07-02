@@ -1,0 +1,98 @@
+/* ---------- Reading progress bar ---------- */
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  z-index: 65;
+  background: linear-gradient(90deg, var(--ivy-bright), var(--marigold));
+  transform-origin: left;
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* ---------- Back to top ---------- */
+.top {
+  position: fixed;
+  bottom: 1.4rem;
+  left: 1.4rem;
+  z-index: 55;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--paper-raised);
+  color: var(--ink);
+  border: 1px solid var(--hairline-strong);
+  box-shadow: 0 2px 0 rgb(var(--shadow-rgb) / 0.05),
+    0 16px 34px -20px rgb(var(--shadow-rgb) / 0.5);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.top:hover { border-color: var(--ivy-bright); color: var(--ivy-bright); transform: translateY(-2px); }
+
+/* ---------- Shortcuts help ---------- */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 72;
+  background: rgb(var(--shadow-rgb) / 0.42);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.panel {
+  width: 100%;
+  max-width: 420px;
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-lg);
+  box-shadow: 0 30px 70px -30px rgb(var(--shadow-rgb) / 0.6);
+  overflow: hidden;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--hairline);
+}
+.head h3 { margin: 0; font-size: 1.15rem; }
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  display: inline-flex;
+  padding: 0.2rem;
+  border-radius: var(--r-sm);
+}
+.closeBtn:hover { color: var(--ink); }
+.rows { padding: 0.6rem 1.2rem 1.2rem; }
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.row:last-child { border-bottom: none; }
+.rowLabel { font-size: 0.92rem; color: var(--ink-soft); }
+.keys { display: inline-flex; gap: 0.3rem; }
+.key {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink);
+  background: var(--paper-sunk);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-sm);
+  padding: 0.14rem 0.44rem;
+  min-width: 1.4rem;
+  text-align: center;
+}
