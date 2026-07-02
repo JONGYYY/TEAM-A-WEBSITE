@@ -17,6 +17,7 @@ const PATHS: Record<string, React.ReactNode> = {
   moon: <><path d="M21 12.8A8 8 0 1 1 11.2 3 6 6 0 0 0 21 12.8Z" /></>,
   arrow: <><path d="M5 12h14M13 6l6 6-6 6" /></>,
   check: <><path d="m4 12 5 5L20 6" /></>,
+  x: <><path d="M6 6l12 12M18 6 6 18" /></>,
   lock: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
   shield: <><path d="M12 3 4 6v6c0 5 3.5 7.5 8 9 4.5-1.5 8-4 8-9V6l-8-3Z" /></>,
   sparkle: <><path d="M12 3c.6 4.5 1.5 5.4 6 6-4.5.6-5.4 1.5-6 6-.6-4.5-1.5-5.4-6-6 4.5-.6 5.4-1.5 6-6Z" /></>,
@@ -34,6 +35,8 @@ const PATHS: Record<string, React.ReactNode> = {
   scale: <><path d="M12 3v18M5 21h14M6 7h12M6 7 3 13h6L6 7Zm12 0-3 6h6l-3-6Z" /></>,
   flag: <><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></>,
   warning: <><path d="M12 3 2 20h20L12 3Z" /><path d="M12 10v5M12 18h.01" /></>,
+  pie: <><path d="M12 3v9h9a9 9 0 1 0-9-9Z" /><path d="M21 12a9 9 0 1 1-9-9" /></>,
+  users: <><circle cx="9" cy="8" r="3.5" /><path d="M3 20a6 6 0 0 1 12 0" /><path d="M16 5.5a3.5 3.5 0 0 1 0 6.9M21 20a6 6 0 0 0-4-5.7" /></>,
 };
 
 export function Icon({ name, size = 20, className }: { name: string; size?: number; className?: string }) {

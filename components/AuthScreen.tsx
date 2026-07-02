@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useAuth } from "@/lib/auth";
+import { useAuth, type Role } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 import { Icon } from "./Icon";
 import { staggerParent, riseItem, easeOut } from "@/lib/motion";
@@ -30,6 +30,7 @@ export function AuthScreen({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<Role>("student");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -40,7 +41,7 @@ export function AuthScreen({
     e.preventDefault();
     setError(null);
     setBusy(true);
-    const res = mode === "signup" ? signup(name, email, password) : login(email, password);
+    const res = mode === "signup" ? signup(name, email, password, role) : login(email, password);
     setBusy(false);
     if (res.ok) onAuthed();
     else setError(res.error ?? "Something went wrong.");
@@ -79,6 +80,31 @@ export function AuthScreen({
       {/* Form card */}
       <motion.div initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.55, ease: easeOut, delay: 0.1 }} className={`${s.card} surface`}>
         <form onSubmit={submit} className={s.form}>
+          {mode === "signup" && (
+            <div className={s.field}>
+              <span className="field-label">I am a…</span>
+              <div className={s.roleRow} role="radiogroup" aria-label="Account type">
+                {([
+                  { id: "student", label: "Student", icon: "user", hint: "Take assigned quizzes" },
+                  { id: "counselor", label: "Counselor", icon: "grad", hint: "Create & assign quizzes" },
+                ] as const).map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={role === r.id}
+                    className={s.roleBtn}
+                    data-selected={role === r.id}
+                    onClick={() => setRole(r.id)}
+                  >
+                    <Icon name={r.icon} size={18} />
+                    <span className={s.roleLabel}>{r.label}</span>
+                    <span className={s.roleHint}>{r.hint}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {mode === "signup" && (
             <label className={s.field}>
               <span className="field-label">First name</span>

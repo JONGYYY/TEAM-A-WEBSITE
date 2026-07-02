@@ -67,6 +67,7 @@ export default function ProfileBuilder() {
       });
       const data = await res.json();
       setAssessment(data.report);
+      try { sessionStorage.setItem("dc:justGenerated", "1"); } catch { /* ignore */ }
       router.push("/college/assessment");
     } catch {
       setGenerating(false);

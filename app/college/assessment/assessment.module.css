@@ -245,6 +245,29 @@
 .flagBullets li { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.88rem; color: var(--ink-soft); line-height: 1.6; }
 .flagBullets li span:first-child { font-weight: 700; flex-shrink: 0; }
 
+/* ───────── S8 Best-Fit Majors & Colleges ───────── */
+.recIntro { font-size: 0.92rem; color: var(--ink-soft); line-height: 1.55; margin: 0 0 1.2rem; }
+.recGroupLabel { display: block; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 0.7rem; }
+.recMajorGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-bottom: 1.6rem; }
+.recMajorCard { border: 1px solid var(--hairline); border-top: 3px solid var(--accent); border-radius: var(--r-md); padding: 1rem 1.1rem; background: var(--paper-raised); }
+.recMajorTop { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.4rem; }
+.recMajorName { font-family: var(--font-display); font-size: 1.1rem; color: var(--ink); }
+.recFitPill { flex-shrink: 0; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.recWhy { font-size: 0.85rem; color: var(--ink-soft); line-height: 1.45; margin: 0; }
+
+.recBandGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.recBandCol { display: flex; flex-direction: column; gap: 0.6rem; }
+.recBandHead { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em; color: var(--band); }
+.recBandDot { width: 8px; height: 8px; border-radius: 50%; background: var(--band); }
+.recBandLabel { text-transform: uppercase; }
+.recBandNote { margin-left: auto; font-size: 0.66rem; color: var(--ink-faint); }
+.recCollegeCard { background: var(--paper-raised); border: 1px solid var(--hairline); border-left: 3px solid var(--band); border-radius: var(--r-sm); padding: 0.7rem 0.8rem; }
+.recCollegeTop { display: flex; align-items: baseline; justify-content: space-between; gap: 0.4rem; }
+.recCollegeName { font-weight: 600; font-size: 0.92rem; color: var(--ink); line-height: 1.25; }
+.recFitMini { flex-shrink: 0; font-family: var(--font-mono); font-size: 0.74rem; font-weight: 600; color: var(--band); }
+.recCollegeLoc { display: block; font-size: 0.74rem; color: var(--ink-faint); margin-top: 0.1rem; }
+.recCollegeWhy { font-size: 0.78rem; color: var(--ink-soft); line-height: 1.4; margin: 0.45rem 0 0; }
+
 /* ───────── Footer ───────── */
 .final { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; padding: 2rem; margin-top: 1.6rem; }
 .finalCol .eyebrow { display: block; margin-bottom: 0.8rem; }
@@ -260,6 +283,8 @@
 @media (max-width: 720px) {
   .awardGrid { grid-template-columns: 1fr; }
   .strengthGrid { grid-template-columns: 1fr; }
+  .recMajorGrid { grid-template-columns: 1fr; }
+  .recBandGrid { grid-template-columns: 1fr; }
   .final { grid-template-columns: 1fr; }
   .hero { flex-direction: column; align-items: flex-start; }
   .narrativeTop { flex-direction: column; }

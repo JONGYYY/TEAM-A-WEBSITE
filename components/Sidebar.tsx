@@ -4,13 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./Icon";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { completionPct } from "@/lib/taxonomy";
 import s from "./Sidebar.module.css";
 
-const NAV = [
+interface NavItem { href: string; icon: string; name: string; gated?: boolean; exact?: boolean }
+interface NavSection { label: string; items: NavItem[] }
+
+const STUDENT_NAV: NavSection[] = [
   {
     label: "Overview",
     items: [{ href: "/dashboard", icon: "gauge", name: "Dashboard" }],
+  },
+  {
+    label: "Quizzes",
+    items: [{ href: "/quizzes", icon: "book", name: "My Quizzes", exact: true }],
   },
   {
     label: "Career Planning",
@@ -35,11 +43,31 @@ const NAV = [
   },
 ];
 
+const COUNSELOR_NAV: NavSection[] = [
+  {
+    label: "Overview",
+    items: [{ href: "/dashboard", icon: "gauge", name: "Dashboard" }],
+  },
+  {
+    label: "Counselor",
+    items: [
+      { href: "/quizzes", icon: "layers", name: "Quizzes Home", exact: true },
+      { href: "/quizzes/build", icon: "spark", name: "Quiz Builder" },
+      { href: "/quizzes/assignments", icon: "calendar", name: "Assignments" },
+      { href: "/quizzes/results", icon: "pie", name: "Results" },
+      { href: "/quizzes/submissions", icon: "award", name: "Submissions" },
+    ],
+  },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
   const { profile, hydrated } = useStore();
+  const { role, hydrated: authHydrated } = useAuth();
   const pct = hydrated ? completionPct(profile) : 0;
   const gatedUnlocked = pct >= 60;
+  const isCounselor = authHydrated && role === "counselor";
+  const NAV = isCounselor ? COUNSELOR_NAV : STUDENT_NAV;
 
   return (
     <aside className={s.sidebar}>
@@ -58,7 +86,9 @@ export function Sidebar() {
         <div key={section.label} className={s.navSection}>
           <div className={s.navLabel}>{section.label}</div>
           {section.items.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            const active = item.exact
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(item.href + "/");
             const locked = "gated" in item && item.gated && !gatedUnlocked;
             return (
               <Link
@@ -75,15 +105,17 @@ export function Sidebar() {
         </div>
       ))}
 
-      <div className={s.progressBox}>
-        <div className={s.progressTop}>
-          <span className="eyebrow">Profile</span>
-          <span className={s.progressNum}>{pct}%</span>
+      {!isCounselor && (
+        <div className={s.progressBox}>
+          <div className={s.progressTop}>
+            <span className="eyebrow">Profile</span>
+            <span className={s.progressNum}>{pct}%</span>
+          </div>
+          <div className={s.progressTrack}>
+            <div className={s.progressFill} style={{ width: `${pct}%` }} />
+          </div>
         </div>
-        <div className={s.progressTrack}>
-          <div className={s.progressFill} style={{ width: `${pct}%` }} />
-        </div>
-      </div>
+      )}
     </aside>
   );
 }

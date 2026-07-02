@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { generateAssessment } from "@/lib/generateAssessment";
 import { chatJSON, hasOpenAI, EVAL_MODEL } from "@/lib/openai";
 import { EVAL_SYSTEM, buildEvalUser } from "@/lib/prompts";
-import type { StudentProfile, AssessmentReport } from "@/lib/types";
+import { localRecommendations } from "@/lib/recommend";
+import type { StudentProfile, AssessmentReport, Recommendations, MajorRec, CollegeRec } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -74,5 +75,53 @@ function validate(r: Partial<AssessmentReport>, profile: StudentProfile): Assess
     redFlags: Array.isArray(r.redFlags) ? r.redFlags : [],
     overallAssessment: Array.isArray(r.overallAssessment) ? r.overallAssessment : [],
     actionItems: Array.isArray(r.actionItems) ? r.actionItems : [],
+    recommendations: normalizeRecommendations(r.recommendations, profile),
   } as AssessmentReport;
+}
+
+/**
+ * Ensures the recommendations block has exactly 2 majors and 2 colleges per
+ * band. Any missing or malformed part is backfilled from the deterministic
+ * local recommender so the pop-up and Section 8 always have complete data.
+ */
+function normalizeRecommendations(raw: unknown, profile: StudentProfile): Recommendations {
+  const local = localRecommendations(profile);
+  const rec = (raw && typeof raw === "object" ? raw : {}) as Partial<Recommendations>;
+
+  const clampFit = (n: unknown) => {
+    const x = Number(n);
+    return Number.isFinite(x) ? Math.max(0, Math.min(100, Math.round(x))) : 60;
+  };
+
+  const majorsRaw = Array.isArray(rec.majors)
+    ? rec.majors.filter((m) => m && typeof m.name === "string" && m.name.trim()).slice(0, 2)
+    : [];
+  const majors: MajorRec[] = majorsRaw.length >= 2
+    ? majorsRaw.map((m) => ({ name: String(m.name).trim(), fit: clampFit(m.fit), why: String(m.why || "").trim() }))
+    : local.majors;
+
+  const band = (incoming: unknown, fallback: CollegeRec[]): CollegeRec[] => {
+    const arr = Array.isArray(incoming)
+      ? incoming.filter((c) => c && typeof c.name === "string" && c.name.trim()).slice(0, 2)
+      : [];
+    return arr.length >= 2
+      ? arr.map((c) => ({
+          name: String(c.name).trim(),
+          location: String(c.location || "").trim(),
+          fit: clampFit(c.fit),
+          why: String(c.why || "").trim(),
+        }))
+      : fallback;
+  };
+
+  const colIn = (rec.colleges || {}) as Partial<Recommendations["colleges"]>;
+  return {
+    majors,
+    colleges: {
+      reach: band(colIn.reach, local.colleges.reach),
+      target: band(colIn.target, local.colleges.target),
+      likely: band(colIn.likely, local.colleges.likely),
+    },
+    summary: typeof rec.summary === "string" && rec.summary.trim() ? rec.summary.trim() : local.summary,
+  };
 }

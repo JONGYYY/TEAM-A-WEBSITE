@@ -8,6 +8,7 @@ import { completionPct } from "@/lib/taxonomy";
 import { Icon } from "@/components/Icon";
 import { CountUp } from "@/components/CountUp";
 import { Radar } from "@/components/Radar";
+import { RecommendationModal } from "@/components/RecommendationModal";
 import { staggerParent, riseItem } from "@/lib/motion";
 import s from "./assessment.module.css";
 
@@ -25,7 +26,14 @@ const ACCENT: Record<number, string> = {
   5: "#e0a531", // narrative — amber
   6: "#2fa56e", // strengths — green
   7: "#e05a5a", // red flags — red
+  8: "#7c5cff", // best-fit — violet
 };
+
+const BAND_META: { key: "reach" | "target" | "likely"; label: string; note: string; color: string }[] = [
+  { key: "reach", label: "Reach", note: "Ambitious", color: "#e05a5a" },
+  { key: "target", label: "Target", note: "Well-matched", color: "#12a7bd" },
+  { key: "likely", label: "Likely", note: "Within reach", color: "#2fa56e" },
+];
 
 const TIER_COLOR: Record<number, string> = { 1: "#d98a1f", 2: "#7c5cff", 3: "#3b82f6", 4: "#2fa56e" };
 const TIER_STARS: Record<number, number> = { 1: 5, 2: 4, 3: 3, 4: 1 };
@@ -52,14 +60,26 @@ export default function AssessmentPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const [railOn, setRailOn] = useState(false);
   const [active, setActive] = useState(1);
+  const [showRecs, setShowRecs] = useState(false);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    let flag = false;
+    try { flag = sessionStorage.getItem("dc:justGenerated") === "1"; } catch { /* ignore */ }
+    if (flag && assessment?.recommendations) {
+      setShowRecs(true);
+      try { sessionStorage.removeItem("dc:justGenerated"); } catch { /* ignore */ }
+    }
+  }, [hydrated, assessment]);
 
   useEffect(() => {
     const onScroll = () => {
       const hero = heroRef.current;
       if (hero) setRailOn(hero.getBoundingClientRect().bottom < 150);
       // figure out which section is active
+      const maxSection = assessment?.recommendations ? 8 : 7;
       let current = 1;
-      for (let i = 1; i <= 7; i++) {
+      for (let i = 1; i <= maxSection; i++) {
         const el = document.getElementById(`eval-section-${i}`);
         if (el && el.getBoundingClientRect().top <= 200) current = i;
       }
@@ -112,9 +132,13 @@ export default function AssessmentPage() {
   ].filter(Boolean).join(" · ");
   const radarData = Object.entries(a.radar).map(([k, v]) => ({ label: RADAR_LABELS[k] ?? k, value: v as number }));
   const ringPct = Math.max(0, Math.min(1, a.overallScore / 5));
+  const rec = a.recommendations;
+  const navItems = rec ? [...NAV_ITEMS, { n: 8, key: "", label: "Best-Fit" }] : NAV_ITEMS;
 
   return (
     <div className={s.page}>
+      <RecommendationModal rec={a.recommendations} open={showRecs} onClose={() => setShowRecs(false)} />
+
       {/* ── Big hero banner (scrolls away, recap slides into the right rail) ── */}
       <motion.section variants={staggerParent} initial="hidden" animate="show" ref={heroRef} className={`${s.hero} surface`}>
         <div className={s.heroContour} aria-hidden />
@@ -291,6 +315,49 @@ export default function AssessmentPage() {
             </div>
           </Section>
 
+          {/* Section 8 — Best-Fit Majors & Colleges (only when recommendations exist) */}
+          {rec && (
+            <Section n={8} title="Best-Fit Majors & Colleges" rating="Recommendations">
+              <p className={s.recIntro}>{rec.summary}</p>
+
+              <span className={s.recGroupLabel}>Best-fit majors</span>
+              <div className={s.recMajorGrid}>
+                {rec.majors.map((m) => (
+                  <div key={m.name} className={s.recMajorCard}>
+                    <div className={s.recMajorTop}>
+                      <span className={s.recMajorName}>{m.name}</span>
+                      <span className={s.recFitPill}>{m.fit}% fit</span>
+                    </div>
+                    <p className={s.recWhy}>{m.why}</p>
+                  </div>
+                ))}
+              </div>
+
+              <span className={s.recGroupLabel}>Six schools to explore</span>
+              <div className={s.recBandGrid}>
+                {BAND_META.map((band) => (
+                  <div key={band.key} className={s.recBandCol} style={{ ["--band" as string]: band.color } as React.CSSProperties}>
+                    <div className={s.recBandHead}>
+                      <span className={s.recBandDot} />
+                      <span className={s.recBandLabel}>{band.label}</span>
+                      <span className={s.recBandNote}>{band.note}</span>
+                    </div>
+                    {rec.colleges[band.key].map((c) => (
+                      <div key={c.name} className={s.recCollegeCard}>
+                        <div className={s.recCollegeTop}>
+                          <span className={s.recCollegeName}>{c.name}</span>
+                          <span className={s.recFitMini}>{c.fit}%</span>
+                        </div>
+                        {c.location && <span className={s.recCollegeLoc}>{c.location}</span>}
+                        <p className={s.recCollegeWhy}>{c.why}</p>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
           {/* Footer — overall + actions */}
           <section className={`${s.final} surface`}>
             <div className={s.finalCol}>
@@ -344,7 +411,7 @@ export default function AssessmentPage() {
             </div>
 
             <nav className={s.railNav}>
-              {NAV_ITEMS.map((it) => {
+              {navItems.map((it) => {
                 const color = ACCENT[it.n];
                 const isActive = active === it.n;
                 const rating = (a.radar[it.key] as number | undefined);

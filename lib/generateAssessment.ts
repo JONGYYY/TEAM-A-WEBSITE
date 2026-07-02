@@ -1,4 +1,5 @@
 import type { StudentProfile, AssessmentReport } from "./types";
+import { localRecommendations } from "./recommend";
 
 const clamp = (n: number, lo = 1, hi = 5) => Math.max(lo, Math.min(hi, n));
 const aOrAn = (word: string) => (/^[aeiou]/i.test(word) ? "an" : "a");
@@ -155,6 +156,7 @@ export function generateAssessment(p: StudentProfile): AssessmentReport {
       flags.length ? "The gaps flagged are largely presentational and fixable before you apply." : "Few weaknesses to address — focus on sustaining momentum.",
     ],
     actionItems: buildActions(p, flags),
+    recommendations: localRecommendations(p),
   };
 }
 

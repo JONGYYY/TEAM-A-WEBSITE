@@ -61,6 +61,15 @@ export const ASSESSMENT_SHAPE = {
   redFlags: [{ title: "", severity: "moderate", points: [""] }],
   overallAssessment: [""],
   actionItems: [""],
+  recommendations: {
+    majors: [{ name: "", fit: 0, why: "" }],
+    colleges: {
+      reach: [{ name: "", location: "", fit: 0, why: "" }],
+      target: [{ name: "", location: "", fit: 0, why: "" }],
+      likely: [{ name: "", location: "", fit: 0, why: "" }],
+    },
+    summary: "",
+  },
 };
 
 export const EVAL_SYSTEM = `You are an experienced university admissions reader simulating a committee review for a U.S. undergraduate applicant. Your job is an honest, calibrated, evidence-based read — the kind that helps a student improve, not flattery and not discouragement.
@@ -84,7 +93,15 @@ SCORING — every radar axis is 1.0–5.0 (one decimal). overallScore is ALSO on
 
 VERDICT must be a short calibrated phrase (e.g. "Strong regional-state profile, building toward selective", not a guarantee).
 
-Return STRICT JSON ONLY (no markdown, no prose outside JSON) matching the provided schema exactly. Use the exact keys. Arrays may be empty but must be present. radar keys must be: academic, extracurricular, career, awards, narrative, strengths, redFlags.`;
+RECOMMENDATIONS (the "recommendations" object) — best-fit majors and a balanced college list:
+- majors: EXACTLY 2 real undergraduate majors that best fit the student's interests, activities, and trajectory. "fit" is 0–100 (how well it matches THIS student). "why" is one concise sentence citing the specific interests/activities it draws on.
+- colleges: EXACTLY 2 schools in EACH of reach, target, likely (6 total, all distinct). Use real, well-known U.S. institutions. Tailor to the student's stated major/interests AND preferences when provided (preference.regions, preference.setting, preference.institutionType, preference.specialDesignation) and intake.targetSelectivity.
+  - Classify bands RELATIVE TO THIS STUDENT'S stats (GPA, SAT/ACT, rigor): "reach" = admission would be a stretch for their profile; "target" = roughly matched / 50-50; "likely" = comfortably within reach.
+  - If the student has no test scores yet (underclassman), reason from GPA/rigor/interests and keep picks directional; still return 2 per band.
+  - Each college: "name", "location" (City, ST or state), "fit" 0–100 (program + preference fit, independent of admission odds), and "why" = one concise sentence (why it fits their interests/preferences and why it lands in that band). Do NOT restate the student's GPA/SAT as if it were the school's.
+- summary: 1–2 sentences tying the major picks to the college list. Do NOT promise admission anywhere.
+
+Return STRICT JSON ONLY (no markdown, no prose outside JSON) matching the provided schema exactly. Use the exact keys. Arrays may be empty but must be present (EXCEPT recommendations.majors must have 2 and each recommendations.colleges band must have 2). radar keys must be: academic, extracurricular, career, awards, narrative, strengths, redFlags.`;
 
 export function buildEvalUser(profile: StudentProfile) {
   const grade = profile.intake.grade ?? gradeFromSchoolYear(profile.basic.schoolYear);
@@ -115,4 +132,89 @@ ${JSON.stringify(profile)}`;
 function gradeFromSchoolYear(sy: string): number | null {
   const m = sy.match(/(9|10|11|12)/);
   return m ? Number(m[1]) : null;
+}
+
+/* =========================================================================
+   QUIZ EXTRACTION (counselor uploads a file / pastes text -> questions)
+   ========================================================================= */
+
+export const QUIZ_EXTRACT_SYSTEM = `You convert a counselor's document into a structured quiz OR survey.
+
+First decide "kind":
+- "quiz": there are objectively correct answers (knowledge/assessment; may have an answer key, points, true/false facts).
+- "survey": there are NO correct answers. It measures preference/personality/fit and has a SCORING GUIDE that maps answer choices to categories/types (e.g. "Mostly A → Large Campus", letter-coded options A/B/C, "choose what feels most like you"). Personality/preference quizzes are SURVEYS.
+
+Extract questions ONLY from the provided text. NEVER invent questions.
+Choose the best "type" per question:
+- "multiple_choice": 3+ answer choices (most survey questions are this).
+- "true_false": a statement judged true/false, or exactly two opposing choices.
+- "short_answer": brief word/phrase/sentence answer.
+- "long_answer": explanation, essay, or open reflection.
+For "multiple_choice"/"true_false", populate "options" with the visible choices (for true_false use exactly [{"text":"True"},{"text":"False"}]).
+
+IF kind = "quiz":
+- ANSWER KEYS: only set "correctOptionText" or "correctText" if the document clearly marks the correct answer (answer key, asterisk, "Answer:"). Otherwise OMIT. Never guess.
+- "points": use stated points; otherwise default to 1.
+- Leave "outcomes" empty and omit each option's "outcomeKey".
+
+IF kind = "survey":
+- Build "outcomes" from the scoring guide: one per category. "key" is the answer letter/code that maps to it (e.g. "A","B","C"). "label" is the human label (prefer an explicit "Output Label" like "Large Campus Explorer"; else the category name like "Large Campus Preference"). "description" is the explanatory paragraph for that category.
+- For EACH option, set "outcomeKey" to the letter/category it corresponds to (by its A/B/C ordering or as the document indicates). Do NOT set correctOptionText/correctText. "points" may be 0.
+
+Derive a concise "title" from the heading; if none, "Untitled".
+Output STRICT JSON only, no markdown, matching the schema. Arrays present even if empty.
+
+JSON schema:
+{
+  "kind": "quiz" | "survey",
+  "title": string,
+  "outcomes": [{ "key": string, "label": string, "description": string }],
+  "questions": [{
+    "type": "multiple_choice" | "true_false" | "short_answer" | "long_answer",
+    "prompt": string,
+    "options": [{ "text": string, "outcomeKey": string }],
+    "correctOptionText": string,
+    "correctText": string,
+    "points": number
+  }]
+}`;
+
+export function buildQuizExtractUser(text: string) {
+  return `Convert the following quiz/survey text into questions. Return JSON ONLY.
+
+"""
+${text.slice(0, 16000)}
+"""`;
+}
+
+/* =========================================================================
+   QUIZ GRADING (AI-suggested grades for free-response answers)
+   ========================================================================= */
+
+export const QUIZ_GRADE_SYSTEM = `You are a fair, consistent teaching assistant grading a student's free-response answers.
+
+Rules:
+- Grade ONLY against the question prompt and any provided rubric or reference answer. Do not penalize style or length unless the rubric requires it.
+- "awarded" must be an integer from 0 to "max" (inclusive) for each question. Be calibrated: full marks for a complete correct answer, partial for partially correct, 0 for blank/irrelevant.
+- "feedback" is one or two short, constructive sentences addressed to the student. Be specific and kind.
+- These are SUGGESTED grades a human counselor will review; never refuse. If an answer is blank, award 0 with brief feedback.
+- Output STRICT JSON only matching the schema. Include every questionId you were given.
+
+JSON schema:
+{ "grades": [{ "questionId": string, "awarded": number, "feedback": string }] }`;
+
+export interface GradeItem {
+  questionId: string;
+  prompt: string;
+  type: string;
+  max: number;
+  rubric?: string;
+  reference?: string;
+  answer: string;
+}
+
+export function buildQuizGradeUser(items: GradeItem[]) {
+  return `Grade these free-response answers and return JSON ONLY.
+
+${JSON.stringify(items, null, 2)}`;
 }

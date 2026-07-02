@@ -24,6 +24,24 @@
 .card { padding: 2rem; }
 .form { display: flex; flex-direction: column; gap: 0.9rem; }
 .field { display: block; }
+
+.roleRow { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.35rem; }
+.roleBtn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem;
+  text-align: left; cursor: pointer; font-family: var(--font-ui);
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--hairline-strong); border-radius: var(--r-md);
+  padding: 0.7rem 0.8rem; transition: all var(--dur-fast) var(--ease-out);
+}
+.roleBtn svg { color: var(--ink-faint); transition: color var(--dur-fast) var(--ease-out); }
+.roleBtn:hover { border-color: var(--ivy-bright); }
+.roleBtn[data-selected="true"] {
+  border-color: var(--ivy-bright);
+  background: color-mix(in srgb, var(--ivy-bright) 12%, transparent);
+}
+.roleBtn[data-selected="true"] svg { color: var(--ivy-bright); }
+.roleLabel { font-weight: 600; font-size: 0.95rem; }
+.roleHint { font-size: 0.74rem; color: var(--ink-faint); }
 .error {
   display: flex; align-items: center; gap: 0.4rem;
   font-size: 0.84rem; color: var(--clay); font-weight: 500;
