@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateAssessment } from "@/lib/generateAssessment";
-import { chatJSON, hasOpenAI, EVAL_MODEL } from "@/lib/openai";
+import { chatJSON, hasAnthropic, EVAL_MODEL } from "@/lib/anthropic";
 import { EVAL_SYSTEM, buildEvalUser } from "@/lib/prompts";
 import { localRecommendations } from "@/lib/recommend";
 import type { StudentProfile, AssessmentReport, Recommendations, MajorRec, CollegeRec } from "@/lib/types";
@@ -17,7 +17,7 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const { profile } = (await req.json()) as { profile: StudentProfile };
 
-  if (hasOpenAI()) {
+  if (hasAnthropic()) {
     try {
       const raw = await chatJSON<Partial<AssessmentReport>>({
         model: EVAL_MODEL,
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
         maxTokens: 4096,
       });
       const report = validate(raw, profile);
-      if (report) return NextResponse.json({ report, source: "openai" });
+      if (report) return NextResponse.json({ report, source: "claude" });
     } catch {
       /* fall through to local generator */
     }
