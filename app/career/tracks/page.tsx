@@ -11,9 +11,12 @@ import { Icon } from "@/components/Icon";
 import { easeOut } from "@/lib/motion";
 import p from "@/components/planning.module.css";
 
+export interface TrackAddition { trackId: string; trackName: string; courses: string[] }
+
 export default function Tracks() {
   const { profile, hydrated } = useStore();
   const [career, , cHydrated] = useUserLocal<{ pillars: Record<string, number> } | null>("career", null);
+  const [added, setAdded] = useUserLocal<TrackAddition | null>("plannerTrack", null);
   const [active, setActive] = useState(0);
   if (!hydrated || !cHydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
 
@@ -34,6 +37,7 @@ export default function Tracks() {
   }
 
   const t = ranked[active].track;
+  const alreadyAdded = added?.trackId === t.id;
 
   return (
     <div className="container">
@@ -63,9 +67,20 @@ export default function Tracks() {
             <TrackCol title="Best-fit majors" icon="grad" items={t.majors} />
           </div>
 
-          <div style={{ marginTop: "1.8rem", display: "flex", gap: "0.8rem", flexWrap: "wrap" }}>
-            <Link href="/career/planner" className="btn btn-primary">Add to my 4-year plan <Icon name="arrow" size={16} /></Link>
+          <div style={{ marginTop: "1.8rem", display: "flex", gap: "0.8rem", flexWrap: "wrap", alignItems: "center" }}>
+            <Link
+              href="/career/planner"
+              className="btn btn-primary"
+              onClick={() => setAdded({ trackId: t.id, trackName: t.name, courses: t.courses })}
+            >
+              {alreadyAdded ? "Update my 4-year plan" : "Add to my 4-year plan"} <Icon name="arrow" size={16} />
+            </Link>
             <Link href="/college/majors" className="btn btn-ghost">See matching majors</Link>
+            {alreadyAdded && (
+              <span className="mono" style={{ fontSize: "0.78rem", color: "var(--ivy-bright)", display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+                <Icon name="check" size={14} /> Already in your plan
+              </span>
+            )}
           </div>
         </motion.div>
       </AnimatePresence>
