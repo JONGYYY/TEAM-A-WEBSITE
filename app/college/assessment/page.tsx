@@ -106,6 +106,9 @@ export default function AssessmentPage() {
         body: JSON.stringify({ profile }),
       });
       const data = await res.json();
+      if (!assessment) {
+        try { sessionStorage.setItem("dc:justGenerated", "1"); } catch { /* ignore */ }
+      }
       setAssessment(data.report);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
@@ -142,10 +145,21 @@ export default function AssessmentPage() {
             <div className={s.gateFill} style={{ width: `${pct}%` }} />
           </div>
           <span className="muted" style={{ fontSize: "0.85rem" }}>{pct}% complete · {pct >= 60 ? "ready to generate" : "60% recommended"}</span>
-          <div style={{ marginTop: "1.4rem" }}>
-            <Link href="/college/profile" className="btn btn-primary">
-              {pct > 0 ? "Continue your profile" : "Build your profile"} <Icon name="arrow" size={16} />
-            </Link>
+          <div style={{ marginTop: "1.4rem", display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
+            {pct >= 60 ? (
+              <>
+                <button className="btn btn-primary" onClick={regenerate} disabled={regenerating}>
+                  {regenerating ? "Generating…" : "Generate my evaluation"} <Icon name={regenerating ? "clock" : "sparkle"} size={16} />
+                </button>
+                <Link href="/college/profile" className="btn btn-ghost">
+                  Refine profile first
+                </Link>
+              </>
+            ) : (
+              <Link href="/college/profile" className="btn btn-primary">
+                {pct > 0 ? "Continue your profile" : "Build your profile"} <Icon name="arrow" size={16} />
+              </Link>
+            )}
           </div>
         </div>
       </div>

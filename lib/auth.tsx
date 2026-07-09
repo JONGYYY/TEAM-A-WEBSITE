@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { supabase } from "./supabase";
+import { supabase, hasSupabase } from "./supabase";
 import { GUEST, migrateBucket } from "./storageKeys";
 import type { Role } from "./types";
 
@@ -47,14 +47,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      const session = data.session;
-      if (session?.user && active) {
-        const p = await loadProfile(session.user.id, session.user.email || "");
-        if (active) setUser(p);
-      }
-      if (active) setHydrated(true);
-    });
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        const session = data.session;
+        if (session?.user && active) {
+          const p = await loadProfile(session.user.id, session.user.email || "");
+          if (active) setUser(p);
+        }
+      })
+      .catch(() => {
+        /* offline or Supabase unreachable — fall back to guest */
+      })
+      .finally(() => {
+        if (active) setHydrated(true);
+      });
 
     // Defer any Supabase calls out of the callback to avoid the auth lock.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -81,6 +88,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!name.trim()) return { ok: false, error: "Please enter your name." };
       if (!EMAIL_RE.test(email)) return { ok: false, error: "Enter a valid email address." };
       if (password.length < 6) return { ok: false, error: "Password must be at least 6 characters." };
+      if (!hasSupabase()) {
+        return { ok: false, error: "Accounts aren't set up on this deployment yet. Continue as a guest for now — your answers still save on this device." };
+      }
 
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) {
@@ -111,6 +121,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (emailRaw: string, password: string): Promise<AuthResult> => {
     const email = emailRaw.trim().toLowerCase();
+    if (!hasSupabase()) {
+      return { ok: false, error: "Accounts aren't set up on this deployment yet. Continue as a guest for now — your answers still save on this device." };
+    }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.user) return { ok: false, error: "Email or password is incorrect." };
     const p = await loadProfile(data.user.id, email);

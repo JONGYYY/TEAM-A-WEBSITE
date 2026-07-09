@@ -7,12 +7,38 @@ import { StoreProvider } from "@/lib/store";
 import { ToastProvider } from "@/lib/toast";
 import { AppShell } from "@/components/AppShell";
 
+const title = "DreamCollege.ai — College & Career Planning";
+const description = "Map your path from self-discovery to your dream college — career fit, best-fit majors, a calibrated college list, and an admissions evaluation built around you.";
+
 export const metadata: Metadata = {
-  title: "DreamCollege.ai — College & Career Planning",
-  description: "Map your path from self-discovery to your dream college.",
+  title,
+  description,
+  applicationName: "DreamCollege.ai",
+  keywords: ["college planning", "career discovery", "college list", "admissions evaluation", "scholarships", "major finder"],
+  openGraph: {
+    title,
+    description,
+    siteName: "DreamCollege.ai",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title,
+    description,
+  },
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
-const noFlash = `(function(){try{var t=localStorage.getItem('dc.theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
+export const viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f0eeff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f0a2e" },
+  ],
+};
+
+const noFlash = `(function(){try{var t=localStorage.getItem('dc.theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

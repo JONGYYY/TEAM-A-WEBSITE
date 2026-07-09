@@ -46,6 +46,7 @@ const PATHS: Record<string, React.ReactNode> = {
   copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></>,
   quote: <><path d="M7 7H4v6h5V9c0-1.5 0-2 1-2.5M18 7h-3v6h5V9c0-1.5 0-2 1-2.5" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
 };
 
 export function Icon({ name, size = 20, className }: { name: string; size?: number; className?: string }) {
