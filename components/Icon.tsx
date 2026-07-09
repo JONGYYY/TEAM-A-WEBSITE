@@ -38,6 +38,7 @@ const PATHS: Record<string, React.ReactNode> = {
   pie: <><path d="M12 3v9h9a9 9 0 1 0-9-9Z" /><path d="M21 12a9 9 0 1 1-9-9" /></>,
   users: <><circle cx="9" cy="8" r="3.5" /><path d="M3 20a6 6 0 0 1 12 0" /><path d="M16 5.5a3.5 3.5 0 0 1 0 6.9M21 20a6 6 0 0 0-4-5.7" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
+  refresh: <><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 4v5h-5" /></>,
   download: <><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></>,
   upload: <><path d="M12 21V9M7 14l5-5 5 5M5 3h14" /></>,
   target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.4" /></>,

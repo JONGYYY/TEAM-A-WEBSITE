@@ -36,7 +36,7 @@ export function AccountMenu() {
   async function handleLogout() {
     await logout();
     setOpen(false);
-    router.push("/dashboard");
+    router.push("/dashboard?auth=login");
   }
 
   return (

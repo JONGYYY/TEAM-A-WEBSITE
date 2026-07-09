@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { Icon } from "@/components/Icon";
 import { PageHeader } from "@/components/PageHeader";
 import { QuizGate } from "@/components/QuizGate";
+import { RefreshButton } from "@/components/RefreshButton";
 import {
   useQuizData,
   getQuizzesByOwner,
@@ -145,7 +146,11 @@ function Assignments() {
       <div className={s.cols}>
         {/* Assign panel */}
         <section className={`${s.panel} surface`}>
-          <div className={s.panelHead}><span className={s.panelTitle}>Assign to</span></div>
+          <div className={s.panelHead}>
+            <span className={s.panelTitle}>Assign to</span>
+            <span className={s.grow} />
+            <RefreshButton label="Refresh students" />
+          </div>
 
           {students.length === 0 ? (
             <div className={s.empty}>

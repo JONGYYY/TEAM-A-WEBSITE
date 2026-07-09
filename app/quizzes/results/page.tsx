@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { QuizGate } from "@/components/QuizGate";
 import { DonutChart } from "@/components/DonutChart";
 import { SurveyResultView } from "@/components/SurveyResultView";
+import { RefreshButton } from "@/components/RefreshButton";
 import { staggerParent, riseItem } from "@/lib/motion";
 import {
   useQuizData,
@@ -138,6 +139,9 @@ function Results() {
             <Icon name="user" size={15} /> Preview
           </Link>
         )}
+        <span style={{ alignSelf: "flex-end" }}>
+          <RefreshButton label="Refresh" />
+        </span>
       </div>
 
       {roster.length === 0 ? (

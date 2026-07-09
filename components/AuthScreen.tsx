@@ -19,10 +19,16 @@ export function AuthScreen({
   initialMode = "signup",
   onAuthed,
   onGuest,
+  lockedRole,
+  onBack,
 }: {
   initialMode?: "signup" | "login";
   onAuthed: () => void;
   onGuest?: () => void;
+  /** When set, the role is fixed (chosen earlier in onboarding) and the selector is hidden. */
+  lockedRole?: Role;
+  /** Optional "go back to role choice" affordance shown during signup. */
+  onBack?: () => void;
 }) {
   const { signup, login } = useAuth();
   const { profile } = useStore();
@@ -30,10 +36,11 @@ export function AuthScreen({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Role>("student");
+  const [role, setRole] = useState<Role>(lockedRole ?? "student");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const isCounselor = role === "counselor";
   const grade = profile.intake.grade;
   const goalHook = profile.intake.primaryGoal ? GOAL_HOOK[profile.intake.primaryGoal] : "your personalized plan";
 
@@ -57,27 +64,42 @@ export function AuthScreen({
       {/* Value panel */}
       <motion.div variants={staggerParent} initial="hidden" animate="show" className={s.pitch}>
         <motion.span variants={riseItem} className="eyebrow">
-          {mode === "signup" ? "Last step — and it's quick" : "Welcome back"}
+          {mode === "login" ? "Welcome back" : isCounselor ? "Set up your counselor account" : "Last step — and it's quick"}
         </motion.span>
         <motion.h1 variants={riseItem} className={s.h1}>
-          {mode === "signup" ? (
-            <>Save your plan,<br /><em className={s.em}>{grade ? `Grade ${grade} you` : "future grad"}</em>.</>
-          ) : (
+          {mode === "login" ? (
             <>Pick up<br />where <em className={s.em}>you left off</em>.</>
+          ) : isCounselor ? (
+            <>Your <em className={s.em}>counselor</em><br />workspace.</>
+          ) : (
+            <>Save your plan,<br /><em className={s.em}>{grade ? `Grade ${grade} you` : "future grad"}</em>.</>
           )}
         </motion.h1>
         <motion.p variants={riseItem} className={s.sub}>
-          {mode === "signup"
-            ? <>Create a free account to keep your answers and unlock <strong>{goalHook}</strong>. No re-entering anything — ever.</>
-            : "Log in to see your saved profile, plan, and evaluation."}
+          {mode === "login"
+            ? "Log in to see your saved profile, plan, and evaluation."
+            : isCounselor
+            ? <>Create a free account to build quizzes &amp; surveys, assign them to students or groups, and see results in one place.</>
+            : <>Create a free account to keep your answers and unlock <strong>{goalHook}</strong>. No re-entering anything — ever.</>}
         </motion.p>
 
         {mode === "signup" && (
           <motion.ul variants={riseItem} className={s.benefits}>
-            <li><span className={s.check}><Icon name="check" size={14} /></span> Your progress saves automatically</li>
-            <li><span className={s.check}><Icon name="check" size={14} /></span> Unlock {goalHook}</li>
-            <li><span className={s.check}><Icon name="check" size={14} /></span> Pick up on any device, anytime</li>
-            <li><span className={s.check}><Icon name="check" size={14} /></span> Private by default — your data stays yours</li>
+            {isCounselor ? (
+              <>
+                <li><span className={s.check}><Icon name="check" size={14} /></span> Upload a PDF or paste text — we build the questions</li>
+                <li><span className={s.check}><Icon name="check" size={14} /></span> Assign to individual students or whole groups</li>
+                <li><span className={s.check}><Icon name="check" size={14} /></span> Track completion and results live</li>
+                <li><span className={s.check}><Icon name="check" size={14} /></span> Students you invite show up automatically</li>
+              </>
+            ) : (
+              <>
+                <li><span className={s.check}><Icon name="check" size={14} /></span> Your progress saves automatically</li>
+                <li><span className={s.check}><Icon name="check" size={14} /></span> Unlock {goalHook}</li>
+                <li><span className={s.check}><Icon name="check" size={14} /></span> Pick up on any device, anytime</li>
+                <li><span className={s.check}><Icon name="check" size={14} /></span> Private by default — your data stays yours</li>
+              </>
+            )}
           </motion.ul>
         )}
       </motion.div>
@@ -85,7 +107,7 @@ export function AuthScreen({
       {/* Form card */}
       <motion.div initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.55, ease: easeOut, delay: 0.1 }} className={`${s.card} surface`}>
         <form onSubmit={submit} className={s.form}>
-          {mode === "signup" && (
+          {mode === "signup" && !lockedRole && (
             <div className={s.field}>
               <span className="field-label">I am a…</span>
               <div className={s.roleRow} role="radiogroup" aria-label="Account type">
@@ -146,6 +168,9 @@ export function AuthScreen({
 
         {onGuest && mode === "signup" && (
           <button className={s.guest} onClick={onGuest}>I&apos;ll do this later — keep exploring</button>
+        )}
+        {onBack && mode === "signup" && (
+          <button className={s.guest} onClick={onBack}>← Choose a different role</button>
         )}
       </motion.div>
     </div>

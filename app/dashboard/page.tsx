@@ -1,15 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
-import { useAuth } from "@/lib/auth";
+import { useAuth, type Role } from "@/lib/auth";
 import { useUserLocal } from "@/lib/useLocal";
 import { completionPct } from "@/lib/taxonomy";
 import { rankMajors, scoreTracks, calibrateColleges } from "@/lib/content";
 import { Intake } from "@/components/Intake";
 import { AuthScreen } from "@/components/AuthScreen";
+import { RoleChoice } from "@/components/RoleChoice";
 import { Icon } from "@/components/Icon";
 import { CountUp } from "@/components/CountUp";
 import { useToast } from "@/lib/toast";
@@ -24,17 +26,37 @@ const GOAL_NEXT: Record<string, { href: string; label: string }> = {
   know_my_chances: { href: "/college/profile", label: "Build your College Profile" },
 };
 
-export default function Dashboard() {
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="container" style={{ minHeight: "40vh" }} />}>
+      <Dashboard />
+    </Suspense>
+  );
+}
+
+function Dashboard() {
   const { profile, assessment, hydrated, resetAll } = useStore();
-  const { user, hydrated: authHydrated } = useAuth();
+  const { user, role, hydrated: authHydrated } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [authMode, setAuthMode] = useState<"signup" | "login" | null>(() => {
-    if (typeof window === "undefined") return null;
-    const a = new URLSearchParams(window.location.search).get("auth");
+    const a = searchParams.get("auth");
     return a === "login" || a === "signup" ? a : null;
   });
+  // React to ?auth= changes even when already on /dashboard (e.g. after logout).
+  useEffect(() => {
+    const a = searchParams.get("auth");
+    if (a === "login" || a === "signup") setAuthMode(a);
+  }, [searchParams]);
   const [guestSkip, setGuestSkip] = useUserLocal<boolean>("skippedAuth", false);
+  const [onboardRole, setOnboardRole] = useUserLocal<Role | null>("onboardRole", null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Counselors don't use the student dashboard — send them to their workspace.
+  useEffect(() => {
+    if (authHydrated && user && role === "counselor") router.replace("/quizzes");
+  }, [authHydrated, user, role, router]);
 
   async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -52,6 +74,9 @@ export default function Dashboard() {
 
   if (!hydrated || !authHydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
 
+  // Counselor is being redirected to /quizzes — don't flash the student flow.
+  if (user && role === "counselor") return <div className="container" style={{ minHeight: "40vh" }} />;
+
   // --- Onboarding gate (guests only) ---
   if (!user) {
     // Explicit auth view (from a link or the "log in" affordance)
@@ -60,13 +85,34 @@ export default function Dashboard() {
         <div className="container">
           <AuthScreen
             initialMode={authMode}
-            onAuthed={() => setAuthMode(null)}
-            onGuest={authMode === "signup" ? () => { setGuestSkip(true); setAuthMode(null); } : undefined}
+            lockedRole={onboardRole ?? undefined}
+            onAuthed={() => { setAuthMode(null); router.replace("/dashboard"); }}
+            onGuest={authMode === "signup" && onboardRole !== "counselor" ? () => { setGuestSkip(true); setAuthMode(null); router.replace("/dashboard"); } : undefined}
           />
         </div>
       );
     }
-    // Step 1: the get-to-know-you questions (before any account)
+    // Step 0: choose student vs counselor before anything else
+    if (!onboardRole) {
+      return (
+        <div className="container">
+          <RoleChoice onChoose={(r) => setOnboardRole(r)} onLogin={() => setAuthMode("login")} />
+        </div>
+      );
+    }
+    // Counselors skip the student intake — straight to creating their account
+    if (onboardRole === "counselor") {
+      return (
+        <div className="container">
+          <AuthScreen
+            lockedRole="counselor"
+            onAuthed={() => router.replace("/quizzes")}
+            onBack={() => setOnboardRole(null)}
+          />
+        </div>
+      );
+    }
+    // Student — Step 1: the get-to-know-you questions (before any account)
     if (!profile.intake.completed) {
       return (
         <div className="container">
@@ -76,16 +122,21 @@ export default function Dashboard() {
         </div>
       );
     }
-    // Step 2: now ask them to create an account to save it
+    // Student — Step 2: now ask them to create an account to save it
     if (!guestSkip) {
       return (
         <div className="container">
-          <AuthScreen onAuthed={() => {}} onGuest={() => setGuestSkip(true)} />
+          <AuthScreen
+            lockedRole="student"
+            onAuthed={() => {}}
+            onGuest={() => setGuestSkip(true)}
+            onBack={() => setOnboardRole(null)}
+          />
         </div>
       );
     }
   } else if (!profile.intake.completed) {
-    // Signed in but no answers yet (edge case)
+    // Signed in (student) but no answers yet (edge case)
     return (
       <div className="container">
         <FirstRunHero />

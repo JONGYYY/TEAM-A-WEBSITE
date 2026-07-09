@@ -35,6 +35,41 @@
 .drop:hover { border-color: var(--marigold); background: color-mix(in srgb, var(--marigold) 6%, transparent); }
 .drop svg { color: var(--marigold-deep); }
 
+.recent { margin-top: 0.85rem; }
+.recentLabel {
+  display: block; font-size: 0.76rem; font-weight: 600; letter-spacing: 0.02em;
+  text-transform: uppercase; color: var(--ink-faint); margin-bottom: 0.5rem;
+}
+.chipRow { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chip {
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  max-width: 100%; padding: 0.45rem 0.55rem 0.45rem 0.7rem;
+  background: var(--paper); color: var(--ink); cursor: pointer;
+  border: 1px solid var(--hairline-strong); border-radius: 999px;
+  font-family: var(--font-ui); text-align: left;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.chip svg { color: var(--marigold-deep); flex-shrink: 0; }
+.chip:hover:not(:disabled) { border-color: var(--marigold); transform: translateY(-1px); }
+.chip:disabled { opacity: 0.55; cursor: default; }
+.chip[data-active="true"] {
+  border-color: var(--marigold);
+  background: color-mix(in srgb, var(--marigold) 12%, transparent);
+}
+.chipMain { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.chipName {
+  font-size: 0.82rem; font-weight: 500; max-width: 15rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chipMeta { font-size: 0.68rem; color: var(--ink-faint); }
+.chipRemove {
+  display: grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0;
+  border-radius: 50%; color: var(--ink-faint);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.chipRemove:hover { background: color-mix(in srgb, var(--clay) 16%, transparent); color: var(--clay); }
+
 .status, .ok, .err {
   display: flex; align-items: center; gap: 0.45rem;
   margin-top: 0.7rem; font-size: 0.85rem; font-weight: 500;
