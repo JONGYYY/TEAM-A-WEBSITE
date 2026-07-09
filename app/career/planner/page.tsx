@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
+import { useUserLocal } from "@/lib/useLocal";
 import { PLAN_BY_GRADE, type PlanItem } from "@/lib/content";
 import { PageHeader } from "@/components/PageHeader";
 import { Icon } from "@/components/Icon";
@@ -16,16 +17,23 @@ const TYPE_META: Record<PlanItem["type"], { icon: string; label: string }> = {
   milestone: { icon: "flag", label: "Milestone" },
 };
 
+interface TrackAddition { trackId: string; trackName: string; courses: string[] }
+
 export default function Planner() {
   const { profile, hydrated } = useStore();
   const [status, setStatus] = useState<"draft" | "active" | "review">("active");
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [note, setNote] = useState<string | null>(null);
   const [recalibrating, setRecalibrating] = useState(false);
-  if (!hydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
+  const [trackAdd, setTrackAdd, taHydrated] = useUserLocal<TrackAddition | null>("plannerTrack", null);
+  if (!hydrated || !taHydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
 
   const grade = profile.intake.grade ?? 11;
   const grades = [9, 10, 11, 12];
+
+  // Courses added from a Career Track that aren't already part of the base plan.
+  const existingLabels = new Set(grades.flatMap((g) => PLAN_BY_GRADE[g].map((it) => it.label.toLowerCase())));
+  const trackCourses = (trackAdd?.courses ?? []).filter((c) => !existingLabels.has(c.toLowerCase()));
 
   function flash(msg: string) {
     setNote(msg);
@@ -38,6 +46,11 @@ export default function Planner() {
     setTimeout(() => setRecalibrating(false), 900);
   }
 
+  function removeTrack() {
+    setTrackAdd(null);
+    flash("Removed track courses from your plan.");
+  }
+
   function downloadJSON() {
     const plan = {
       student: `${profile.basic.firstName} ${profile.basic.lastName}`.trim() || "Student",
@@ -46,8 +59,14 @@ export default function Planner() {
       generatedAt: new Date().toISOString(),
       years: grades.map((g) => ({
         grade: g,
-        items: PLAN_BY_GRADE[g].map((it, i) => ({ ...it, done: !!done[`${g}-${i}`] })),
+        items: [
+          ...PLAN_BY_GRADE[g].map((it, i) => ({ ...it, done: !!done[`${g}-${i}`] })),
+          ...(g === grade
+            ? trackCourses.map((c, i) => ({ label: c, type: "course" as const, done: !!done[`track-${i}`] }))
+            : []),
+        ],
       })),
+      trackAdditions: trackAdd ? { track: trackAdd.trackName, courses: trackCourses } : null,
     };
     const blob = new Blob([JSON.stringify(plan, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -107,6 +126,7 @@ export default function Planner() {
         {grades.map((g) => {
           const items = PLAN_BY_GRADE[g];
           const current = g === grade;
+          const showTrackCourses = current && trackAdd && trackCourses.length > 0;
           return (
             <motion.div key={g} variants={riseItem} className="surface" style={{ padding: "1.4rem", borderColor: current ? "var(--marigold)" : undefined }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "1rem" }}>
@@ -128,6 +148,33 @@ export default function Planner() {
                   );
                 })}
               </div>
+
+              {showTrackCourses && (
+                <div style={{ marginTop: "1rem", paddingTop: "0.9rem", borderTop: "1px solid var(--hairline)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.55rem" }}>
+                    <span className="eyebrow" style={{ fontSize: "0.66rem" }}>From your {trackAdd!.trackName} track</span>
+                    <button
+                      onClick={removeTrack}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-faint)", fontSize: "0.7rem", padding: 0 }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                    {trackCourses.map((course, i) => {
+                      const key = `track-${i}`;
+                      return (
+                        <label key={key} style={{ display: "flex", alignItems: "center", gap: "0.7rem", cursor: "pointer" }}>
+                          <input type="checkbox" checked={!!done[key]} onChange={(e) => setDone((d) => ({ ...d, [key]: e.target.checked }))} style={{ width: 16, height: 16, accentColor: "var(--ivy)" }} />
+                          <span style={{ color: "var(--ivy-bright)", display: "inline-flex" }}><Icon name="book" size={15} /></span>
+                          <span style={{ fontSize: "0.9rem", color: done[key] ? "var(--ink-faint)" : "var(--ink)", textDecoration: done[key] ? "line-through" : "none", flex: 1 }}>{course}</span>
+                          <span className="tag-mono" style={{ fontSize: "0.58rem" }}>Course</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </motion.div>
           );
         })}
