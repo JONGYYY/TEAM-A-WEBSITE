@@ -95,6 +95,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { ok: false, error: "Check your email to confirm your account, then log in." };
       }
 
+      // Carry guest intake answers into the new account's bucket BEFORE any
+      // awaited call below. The awaited insert yields to Supabase's
+      // onAuthStateChange listener, which sets the user and makes the store
+      // load this account's bucket; if migration hasn't run yet the bucket is
+      // empty and the intake ("map your path") is shown a second time.
+      migrateBucket(GUEST, email, true);
+
       const { error: pErr } = await supabase
         .from("profiles")
         .insert({ id: uid, email, name: name.trim(), role });
@@ -102,7 +109,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { ok: false, error: pErr.message };
       }
 
-      migrateBucket(GUEST, email, true); // carry guest intake answers into the new account
       setUser({ name: name.trim(), email, role });
       return { ok: true };
     },

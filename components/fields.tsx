@@ -3,15 +3,19 @@
 import React from "react";
 
 export function Field({
-  label, required, hint, children,
-}: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
+  label, required, hint, invalid, children,
+}: { label: string; required?: boolean; hint?: string; invalid?: boolean; children: React.ReactNode }) {
   return (
-    <label className="field-block" style={{ display: "block" }}>
+    <label className="field-block" style={{ display: "block" }} data-invalid={invalid ? "true" : undefined}>
       <span className="field-label">
         {label} {required && <span className="req">*</span>}
       </span>
       {children}
-      {hint && <span className="field-hint">{hint}</span>}
+      {invalid ? (
+        <span className="field-needs">Add this — your résumé didn&apos;t include it</span>
+      ) : (
+        hint && <span className="field-hint">{hint}</span>
+      )}
     </label>
   );
 }

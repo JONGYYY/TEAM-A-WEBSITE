@@ -123,16 +123,106 @@ export const AP_SUBJECTS = [
   "AP Seminar", "AP Research",
 ];
 
+export const EXAM_TYPES: { id: "AP" | "IB" | "A-Level"; label: string }[] = [
+  { id: "AP", label: "AP Subject Testing" },
+  { id: "IB", label: "IB Subject Testing" },
+  { id: "A-Level", label: "A-Level" },
+];
+
+// IB Diploma Programme subjects, grouped by the six subject groups + core.
+export const IB_SUBJECTS = [
+  // Group 1: Studies in Language and Literature
+  "English A: Language and Literature", "English A: Literature", "Spanish A: Literature",
+  // Group 2: Language Acquisition
+  "Spanish B", "French B", "Mandarin B", "German B", "Spanish ab initio", "French ab initio",
+  // Group 3: Individuals and Societies
+  "History", "Geography", "Economics", "Psychology", "Business Management",
+  "Global Politics", "Philosophy", "Digital Society",
+  // Group 4: Sciences
+  "Biology", "Chemistry", "Physics", "Computer Science", "Environmental Systems and Societies", "Sports, Exercise and Health Science",
+  // Group 5: Mathematics
+  "Mathematics: Analysis and Approaches", "Mathematics: Applications and Interpretation",
+  // Group 6: The Arts
+  "Visual Arts", "Music", "Theatre", "Film", "Dance",
+];
+export const IB_LEVELS = ["HL", "SL"];
+export const IB_STATUSES = ["Planned", "In progress", "Predicted", "Final"];
+export const IB_SCORES = [7, 6, 5, 4, 3, 2, 1];
+export const IB_CORE_GRADES = ["A", "B", "C", "D", "E"];
+export const IB_CORE_STATUSES = ["Planned", "In progress", "Predicted", "Final"];
+export const IB_CAS_STATUSES = ["Planned", "In progress", "Completed"];
+
+// A-Level / Cambridge International.
+export const A_LEVEL_CATEGORIES = [
+  "Sciences", "Mathematics", "Languages", "Humanities", "Social Sciences", "Arts", "Business", "Other",
+];
+export const A_LEVEL_SUBJECTS = [
+  "Mathematics", "Further Mathematics", "Biology", "Chemistry", "Physics", "Computer Science",
+  "Economics", "Business", "Accounting", "History", "Geography", "Psychology", "Sociology",
+  "English Literature", "English Language", "French", "Spanish", "German", "Mandarin", "Latin",
+  "Art and Design", "Music", "Drama and Theatre", "Physical Education", "Law", "Politics",
+];
+export const A_LEVEL_LEVELS = ["A-Level", "AS-Level"];
+export const A_LEVEL_GRADES = ["A*", "A", "B", "C", "D", "E"];
+export const A_LEVEL_STATUSES = ["Planned", "In progress", "Predicted", "Final"];
+export const EXAM_BOARDS = ["AQA", "Edexcel (Pearson)", "OCR", "Cambridge (CIE)", "WJEC / Eduqas", "Other"];
+
 export function emptyProfile(): StudentProfile {
   return {
     intake: { grade: null, interests: [], primaryGoal: null, mood: null, targetSelectivity: null, completed: false },
     basic: { firstName: "", middleName: "", lastName: "", gender: "", schoolYear: "", gradYear: null, firstGen: "", familyIncomeBand: "", incomeOptIn: false },
     education: { school: "", country: "United States", state: "", city: "", classSize: null, classRank: null, rankUnknown: false, gpaScale: "4.0", gpaUnweighted: null, gpaWeighted: null },
-    testing: { sat: null, act: null, ap: [{ subject: "", score: null }], noTestsYet: false },
+    testing: {
+      examType: "AP",
+      sat: null,
+      act: null,
+      ap: [{ subject: "", score: null }],
+      ib: [{ subject: "", level: "", score: null, status: "" }],
+      ibCore: { tok: { status: "", grade: "" }, ee: { status: "", grade: "" }, cas: { status: "" } },
+      aLevel: [{ category: "", subject: "", level: "", grade: "", status: "", board: "" }],
+      noTestsYet: false,
+    },
     preference: { regions: [], interests: [], institutionType: [], specialDesignation: [], campusCulture: [], financialAidImportance: "", setting: [] },
     awards: [{ title: "", gradeLevel: "", recognition: "" }],
     activities: [{ type: "", position: "", organization: "", grades: [], weeksPerYear: null, hoursPerWeek: null, description: "" }],
     meta: { lastStep: 1, updatedAt: "" },
+  };
+}
+
+/**
+ * Deep-merge a persisted (possibly older-schema) profile onto the current
+ * empty profile so newly-added nested fields (e.g. IB/A-Level testing) are
+ * always present. Guards against a shallow spread wiping the defaults.
+ */
+export function normalizeProfile(raw: unknown): StudentProfile {
+  const base = emptyProfile();
+  if (!raw || typeof raw !== "object") return base;
+  const r = raw as Partial<StudentProfile>;
+  const t = (r.testing || {}) as Partial<StudentProfile["testing"]>;
+  const core = (t.ibCore || {}) as Partial<StudentProfile["testing"]["ibCore"]>;
+  return {
+    ...base,
+    ...r,
+    intake: { ...base.intake, ...r.intake },
+    basic: { ...base.basic, ...r.basic },
+    education: { ...base.education, ...r.education },
+    preference: { ...base.preference, ...r.preference },
+    testing: {
+      ...base.testing,
+      ...t,
+      examType: t.examType ?? base.testing.examType,
+      ap: Array.isArray(t.ap) && t.ap.length ? t.ap : base.testing.ap,
+      ib: Array.isArray(t.ib) && t.ib.length ? t.ib : base.testing.ib,
+      aLevel: Array.isArray(t.aLevel) && t.aLevel.length ? t.aLevel : base.testing.aLevel,
+      ibCore: {
+        tok: { ...base.testing.ibCore.tok, ...(core.tok || {}) },
+        ee: { ...base.testing.ibCore.ee, ...(core.ee || {}) },
+        cas: { ...base.testing.ibCore.cas, ...(core.cas || {}) },
+      },
+    },
+    awards: Array.isArray(r.awards) && r.awards.length ? r.awards : base.awards,
+    activities: Array.isArray(r.activities) && r.activities.length ? r.activities : base.activities,
+    meta: { ...base.meta, ...r.meta },
   };
 }
 
@@ -143,7 +233,14 @@ export function completionPct(p: StudentProfile): number {
   if (p.intake.completed) score += w.intake;
   if (p.basic.firstName && p.basic.lastName && p.basic.schoolYear) score += w.basic;
   if (p.education.school || p.education.gpaUnweighted) score += w.education;
-  if (p.testing.noTestsYet || p.testing.sat || p.testing.act || p.testing.ap.some((a) => a.subject)) score += w.testing;
+  if (
+    p.testing.noTestsYet ||
+    p.testing.sat ||
+    p.testing.act ||
+    p.testing.ap.some((a) => a.subject) ||
+    p.testing.ib.some((a) => a.subject) ||
+    p.testing.aLevel.some((a) => a.subject)
+  ) score += w.testing;
   if (p.preference.interests.length || p.preference.regions.length) score += w.preference;
   if (p.awards.some((a) => a.title)) score += w.awards;
   if (p.activities.some((a) => a.type || a.organization)) score += w.activities;

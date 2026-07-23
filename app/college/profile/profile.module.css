@@ -181,6 +181,85 @@
 }
 .removeBtn:hover { color: var(--clay); border-color: var(--clay); }
 
+/* Exam-type selector (AP / IB / A-Level) — segmented control */
+.examTabs {
+  display: inline-flex;
+  gap: 0.3rem;
+  padding: 0.3rem;
+  background: var(--paper-sunk);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  margin-bottom: 1.3rem;
+  flex-wrap: wrap;
+}
+.examTab {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.examTab:hover { color: var(--ink); }
+.examTab[data-active="true"] {
+  background: var(--paper);
+  color: var(--ivy-bright);
+  border-color: var(--hairline-strong);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 0.06));
+}
+
+/* IB core components block */
+.ibCore {
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: 1.1rem;
+  margin-bottom: 1rem;
+  background: var(--paper-sunk);
+}
+.ibCoreRow {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+.ibCoreRow:last-child { margin-bottom: 0; }
+.ibCoreLabel { font-weight: 600; color: var(--ink); font-size: 0.9rem; }
+.ibCoreHint { display: block; font-weight: 400; color: var(--ink-faint); font-size: 0.74rem; margin-top: 0.15rem; }
+
+/* IB subject rows */
+.ibRow {
+  display: grid;
+  grid-template-columns: 1fr 110px 120px 150px 36px;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+.ibRow > :first-child { min-width: 0; }
+
+/* A-Level subject rows */
+.aLevelRow {
+  display: grid;
+  grid-template-columns: 150px 1fr 130px 110px 150px 150px 36px;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+.aLevelRow > :nth-child(2) { min-width: 0; }
+
+@media (max-width: 780px) {
+  .ibRow { grid-template-columns: 1fr 1fr; }
+  .ibRow > :last-child { grid-column: 1 / -1; justify-self: end; }
+  .aLevelRow { grid-template-columns: 1fr 1fr; }
+  .aLevelRow > :last-child { grid-column: 1 / -1; justify-self: end; }
+  .ibCoreRow { grid-template-columns: 1fr; }
+}
+
 .actCard {
   border: 1px solid var(--hairline);
   border-radius: var(--r-md);

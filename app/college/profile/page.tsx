@@ -10,33 +10,161 @@ import { Field, TextInput, NumberInput, Select, ChipMulti } from "@/components/f
 import { Combobox, type ComboOption } from "@/components/Combobox";
 import { ResumeImport } from "@/components/ResumeImport";
 import { matchAP } from "@/lib/apMatch";
-import { parseResume, tidyText } from "@/lib/autofill";
+import { tidyText } from "@/lib/autofill";
 import {
   GENDERS, SCHOOL_YEARS, FIRST_GEN, INCOME_BANDS, GPA_SCALES, RECOGNITION_LEVELS,
   ACTIVITY_TYPES, INTERESTS, REGIONS, INSTITUTION_TYPES,
   SPECIAL_DESIGNATIONS, CAMPUS_CULTURE, SETTINGS, AID_IMPORTANCE, completionPct,
   NO_PREF, togglePref, searchStates,
+  EXAM_TYPES, IB_SUBJECTS, IB_LEVELS, IB_STATUSES, IB_CORE_GRADES, IB_CORE_STATUSES, IB_CAS_STATUSES,
+  A_LEVEL_CATEGORIES, A_LEVEL_SUBJECTS, A_LEVEL_LEVELS, A_LEVEL_GRADES, A_LEVEL_STATUSES, EXAM_BOARDS,
 } from "@/lib/taxonomy";
-import type { StudentProfile } from "@/lib/types";
+import type { StudentProfile, Award, Activity, APEntry, IBEntry, ALevelEntry, IBCore, ExamType } from "@/lib/types";
 import s from "./profile.module.css";
 
 const STEPS = [
   "Basic Information", "Education", "Testing", "Preference", "Awards", "Activities", "Review & Generate",
 ];
 
+// Curated schools the national directory API misses (e.g. junior highs).
+// These are surfaced ahead of API results when they match the query.
+const LOCAL_SCHOOLS: { name: string; city: string; state: string }[] = [
+  { name: "Plano West Jr High", city: "Plano", state: "TX" },
+  { name: "Plano West Senior High", city: "Plano", state: "TX" },
+];
+
 async function searchSchools(query: string): Promise<ComboOption[]> {
-  const res = await fetch(`/api/schools?q=${encodeURIComponent(query)}`);
-  if (!res.ok) return [];
-  const data = await res.json();
-  return (data.schools ?? []).map((s: { name: string; city: string; state: string }) => ({
-    value: s.name,
-    label: s.name,
-    hint: [s.city, s.state].filter(Boolean).join(", "),
+  const q = query.trim().toLowerCase();
+  const curated: ComboOption[] = LOCAL_SCHOOLS.filter((sc) => sc.name.toLowerCase().includes(q)).map((sc) => ({
+    value: sc.name,
+    label: sc.name,
+    hint: [sc.city, sc.state].filter(Boolean).join(", "),
   }));
+
+  let api: ComboOption[] = [];
+  try {
+    const res = await fetch(`/api/schools?q=${encodeURIComponent(query)}`);
+    if (res.ok) {
+      const data = await res.json();
+      api = (data.schools ?? []).map((s: { name: string; city: string; state: string }) => ({
+        value: s.name,
+        label: s.name,
+        hint: [s.city, s.state].filter(Boolean).join(", "),
+      }));
+    }
+  } catch {
+    /* ignore — curated results still show */
+  }
+
+  // Curated first, then API results, de-duped by name.
+  const seen = new Set(curated.map((c) => c.value.toLowerCase()));
+  return [...curated, ...api.filter((a) => !seen.has(a.value.toLowerCase()))];
 }
 
 const AP_MATCH_OPTIONS = (query: string, taken: string[]): ComboOption[] =>
   matchAP(query).filter((sub) => !taken.includes(sub)).map((sub) => ({ value: sub, label: sub }));
+
+const emptyApRow = (): APEntry => ({ subject: "", score: null });
+const emptyIbRow = (): IBEntry => ({ subject: "", level: "", score: null, status: "" });
+const emptyALevelRow = (): ALevelEntry => ({ category: "", subject: "", level: "", grade: "", status: "", board: "" });
+
+/** Partial profile returned by /api/extract-profile (all fields optional). */
+type ResumePartial = {
+  basic?: Partial<StudentProfile["basic"]>;
+  education?: Partial<StudentProfile["education"]>;
+  testing?: {
+    examType?: ExamType;
+    sat?: number | null;
+    act?: number | null;
+    ap?: APEntry[];
+    ib?: IBEntry[];
+    ibCore?: IBCore;
+    aLevel?: ALevelEntry[];
+  };
+  awards?: Award[];
+  activities?: Activity[];
+};
+
+const blankStr = (v: unknown) => !v || (typeof v === "string" && !v.trim());
+
+/** Merge a résumé-extracted partial into the profile, filling only EMPTY fields. */
+function mergeResumePartial(prev: StudentProfile, partial: ResumePartial): StudentProfile {
+  const next: StudentProfile = JSON.parse(JSON.stringify(prev));
+
+  // Basic
+  const pb = partial.basic || {};
+  (["firstName", "middleName", "lastName", "gender", "schoolYear"] as const).forEach((k) => {
+    if (blankStr(next.basic[k]) && !blankStr(pb[k])) next.basic[k] = pb[k] as string;
+  });
+  if (next.basic.gradYear == null && pb.gradYear != null) next.basic.gradYear = pb.gradYear;
+
+  // Education
+  const pe = partial.education || {};
+  (["school", "country", "state", "city", "gpaScale"] as const).forEach((k) => {
+    if (blankStr(next.education[k]) && !blankStr(pe[k])) next.education[k] = pe[k] as string;
+  });
+  (["classSize", "classRank", "gpaUnweighted", "gpaWeighted"] as const).forEach((k) => {
+    if (next.education[k] == null && pe[k] != null) next.education[k] = pe[k] as number;
+  });
+
+  // Testing
+  const pt = partial.testing;
+  if (pt) {
+    const t = next.testing;
+    const hasAny =
+      t.sat != null || t.act != null ||
+      t.ap.some((a) => a.subject) || t.ib.some((a) => a.subject) || t.aLevel.some((a) => a.subject);
+    if (!hasAny && pt.examType) t.examType = pt.examType;
+    if (t.sat == null && pt.sat != null) t.sat = pt.sat;
+    if (t.act == null && pt.act != null) t.act = pt.act;
+    if (pt.sat != null || pt.act != null) t.noTestsYet = false;
+    if (Array.isArray(pt.ap) && pt.ap.length && !t.ap.some((a) => a.subject)) {
+      t.ap = [...pt.ap, emptyApRow()];
+    }
+    if (Array.isArray(pt.ib) && pt.ib.length && !t.ib.some((a) => a.subject)) {
+      t.ib = [...pt.ib, emptyIbRow()];
+    }
+    if (Array.isArray(pt.aLevel) && pt.aLevel.length && !t.aLevel.some((a) => a.subject)) {
+      t.aLevel = [...pt.aLevel, emptyALevelRow()];
+    }
+    if (pt.ibCore) {
+      const c = t.ibCore;
+      if (blankStr(c.tok.status) && !blankStr(pt.ibCore.tok?.status)) c.tok.status = pt.ibCore.tok.status;
+      if (blankStr(c.tok.grade) && !blankStr(pt.ibCore.tok?.grade)) c.tok.grade = pt.ibCore.tok.grade;
+      if (blankStr(c.ee.status) && !blankStr(pt.ibCore.ee?.status)) c.ee.status = pt.ibCore.ee.status;
+      if (blankStr(c.ee.grade) && !blankStr(pt.ibCore.ee?.grade)) c.ee.grade = pt.ibCore.ee.grade;
+      if (blankStr(c.cas.status) && !blankStr(pt.ibCore.cas?.status)) c.cas.status = pt.ibCore.cas.status;
+    }
+  }
+
+  // Awards — merge new titles, keep what the user already has.
+  if (Array.isArray(partial.awards) && partial.awards.length) {
+    const existing = next.awards.filter((a) => a.title);
+    const seen = new Set(existing.map((a) => a.title.toLowerCase()));
+    const merged = [...existing];
+    for (const a of partial.awards) {
+      if (a.title && !seen.has(a.title.toLowerCase())) { merged.push(a); seen.add(a.title.toLowerCase()); }
+    }
+    merged.push({ title: "", gradeLevel: "", recognition: "" });
+    next.awards = merged;
+  }
+
+  // Activities — merge new items, keep user entries.
+  if (Array.isArray(partial.activities) && partial.activities.length) {
+    const key = (a: Activity) => `${a.organization}|${a.description}`.toLowerCase();
+    const existing = next.activities.filter((a) => a.type || a.organization || a.description);
+    const seen = new Set(existing.map(key));
+    const merged = [...existing];
+    for (const a of partial.activities) {
+      if ((a.type || a.organization || a.description) && !seen.has(key(a))) { merged.push(a); seen.add(key(a)); }
+    }
+    merged.push({ type: "", position: "", organization: "", grades: [], weeksPerYear: null, hoursPerWeek: null, description: "" });
+    next.activities = merged;
+  }
+
+  next.meta = { ...next.meta, resumeApplied: true };
+  return next;
+}
 
 export default function ProfileBuilder() {
   const { profile, setProfile, setAssessment, hydrated } = useStore();
@@ -146,27 +274,42 @@ function StepBasic({ profile, setProfile }: StepProps) {
   const [found, setFound] = useState<string[] | null>(null);
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const highlight = !!profile.meta.resumeApplied;
 
-  function runAutofill(text = resumeText) {
-    const { profile: next, found } = parseResume(text, profile);
-    setProfile(() => next);
-    setFound(found);
+  async function applyExtract(body: FormData | string) {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/extract-profile", {
+        method: "POST",
+        ...(typeof body === "string"
+          ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: body }) }
+          : { body }),
+      });
+      const data = await res.json();
+      if (!data.partial) {
+        setFound([]);
+        // Still mark applied so empty required fields flag for the user.
+        setProfile((p) => ({ ...p, meta: { ...p.meta, resumeApplied: true } }));
+        return;
+      }
+      setProfile((p) => mergeResumePartial(p, data.partial));
+      setFound(Array.isArray(data.found) ? data.found : []);
+    } catch {
+      setErr("We couldn't read that file. Try a PDF or DOCX, or paste the text.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function ingestFile(file: File | undefined | null) {
     if (!file) return;
     setFileName(file.name);
-    // Read whatever text we can. PDFs/DOCX are binary, so we strip to the
-    // readable runs and let the parser pick out GPA/SAT/AP/activities.
-    let raw = "";
-    try {
-      raw = await file.text();
-    } catch {
-      raw = "";
-    }
-    const cleaned = raw.replace(/[^\x09\x0A\x0D\x20-\x7E]+/g, " ");
-    setResumeText(cleaned);
-    runAutofill(cleaned);
+    const form = new FormData();
+    form.append("file", file);
+    await applyExtract(form);
   }
 
   return (
@@ -175,8 +318,8 @@ function StepBasic({ profile, setProfile }: StepProps) {
         <div className={s.autofillHead} onClick={() => setResumeOpen((o) => !o)}>
           <span className={s.autofillIcon}><Icon name="sparkle" size={18} /></span>
           <div>
-            <strong>Have a résumé? Paste it and we&apos;ll fill what we can.</strong>
-            <p className="muted" style={{ fontSize: "0.82rem" }}>Skips the repetitive typing — you review everything after.</p>
+            <strong>Have a résumé? Upload it once and we&apos;ll fill every step we can.</strong>
+            <p className="muted" style={{ fontSize: "0.82rem" }}>Basics, education, testing, awards &amp; activities — anything we can&apos;t find gets flagged in red so you know what to add.</p>
           </div>
           <Icon name={resumeOpen ? "check" : "arrow"} size={16} />
         </div>
@@ -191,13 +334,15 @@ function StepBasic({ profile, setProfile }: StepProps) {
             >
               <input
                 type="file"
-                accept=".txt,.md,.csv,.pdf,.doc,.docx"
+                accept=".txt,.md,.csv,.pdf,.docx"
                 style={{ display: "none" }}
                 onChange={(e) => ingestFile(e.target.files?.[0])}
               />
               <Icon name="sparkle" size={20} />
               <span>
-                {fileName
+                {busy
+                  ? <>Reading your résumé…</>
+                  : fileName
                   ? <><strong>{fileName}</strong> — read. Review your details below.</>
                   : <>Drop a résumé here or <u>browse</u> — we read .txt, .pdf &amp; .docx.</>}
               </span>
@@ -211,10 +356,11 @@ function StepBasic({ profile, setProfile }: StepProps) {
               onChange={(e) => setResumeText(e.target.value)}
             />
             <div className="row" style={{ gap: "0.75rem", marginTop: "0.6rem" }}>
-              <button className="btn btn-ivy" onClick={() => runAutofill()} disabled={!resumeText.trim()}>
-                Autofill my profile
+              <button className="btn btn-ivy" onClick={() => applyExtract(resumeText)} disabled={!resumeText.trim() || busy}>
+                {busy ? "Reading…" : "Autofill my profile"}
               </button>
-              {found && (
+              {err && <span className={s.foundNote} style={{ color: "var(--clay)" }}>{err}</span>}
+              {!err && found && (
                 <span className={s.foundNote}>
                   {found.length ? `Filled: ${found.join(" · ")}` : "Nothing detected — no worries, fill it below."}
                 </span>
@@ -225,12 +371,12 @@ function StepBasic({ profile, setProfile }: StepProps) {
       </div>
 
       <div className={s.grid2}>
-        <Field label="First name" required><TextInput value={b.firstName} onChange={(v) => set({ firstName: v })} placeholder="Enter first name" /></Field>
+        <Field label="First name" required invalid={highlight && !b.firstName}><TextInput value={b.firstName} onChange={(v) => set({ firstName: v })} placeholder="Enter first name" /></Field>
         <Field label="Middle name"><TextInput value={b.middleName} onChange={(v) => set({ middleName: v })} placeholder="Middle name" /></Field>
-        <Field label="Last name" required><TextInput value={b.lastName} onChange={(v) => set({ lastName: v })} placeholder="Last name" /></Field>
-        <Field label="Gender" required><Select value={b.gender} onChange={(v) => set({ gender: v })} options={GENDERS} /></Field>
-        <Field label="Current school year" required><Select value={b.schoolYear} onChange={(v) => set({ schoolYear: v })} options={SCHOOL_YEARS} /></Field>
-        <Field label="Graduation year" required><Select value={b.gradYear ? String(b.gradYear) : ""} onChange={(v) => set({ gradYear: Number(v) })} options={["2026", "2027", "2028", "2029", "2030", "2031"]} /></Field>
+        <Field label="Last name" required invalid={highlight && !b.lastName}><TextInput value={b.lastName} onChange={(v) => set({ lastName: v })} placeholder="Last name" /></Field>
+        <Field label="Gender" required invalid={highlight && !b.gender}><Select value={b.gender} onChange={(v) => set({ gender: v })} options={GENDERS} /></Field>
+        <Field label="Current school year" required invalid={highlight && !b.schoolYear}><Select value={b.schoolYear} onChange={(v) => set({ schoolYear: v })} options={SCHOOL_YEARS} /></Field>
+        <Field label="Graduation year" required invalid={highlight && !b.gradYear}><Select value={b.gradYear ? String(b.gradYear) : ""} onChange={(v) => set({ gradYear: Number(v) })} options={["2026", "2027", "2028", "2029", "2030", "2031"]} /></Field>
       </div>
 
       <div className={s.sensitive}>
@@ -271,6 +417,8 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
   const set = (patch: Partial<typeof e>) => setProfile((p) => ({ ...p, education: { ...p.education, ...patch } }));
   const optional = (grade ?? 11) <= 10;
   const gpaEx = gpaExamples(e.gpaScale);
+  // Only flag once a résumé has been applied, and never for underclassmen where academics are optional.
+  const highlight = !!profile.meta.resumeApplied && !optional;
 
   return (
     <div className={s.card}>
@@ -281,7 +429,7 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
         </div>
       )}
       <div className={s.grid2}>
-        <Field label="School name" hint="Start typing — pick from the list or enter your own">
+        <Field label="School name" hint="Start typing — pick from the list or enter your own" invalid={highlight && !e.school}>
           <Combobox
             value={e.school}
             onChange={(v) => set({ school: v })}
@@ -293,7 +441,7 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
           />
         </Field>
         <Field label="Country"><TextInput value={e.country} onChange={(v) => set({ country: v })} placeholder="Country" /></Field>
-        <Field label="State / Province" hint="Type part of a state — e.g. “penn”, “NY”">
+        <Field label="State / Province" hint="Type part of a state — e.g. “penn”, “NY”" invalid={highlight && !e.state}>
           <Combobox
             value={e.state}
             onChange={(v) => set({ state: v })}
@@ -317,7 +465,7 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
           </label>
         </Field>
         <Field label="GPA scale"><Select value={e.gpaScale} onChange={(v) => set({ gpaScale: v })} options={GPA_SCALES} placeholder="4.0" /></Field>
-        <Field label="Unweighted GPA"><NumberInput value={e.gpaUnweighted} onChange={(v) => set({ gpaUnweighted: v })} placeholder={gpaEx.unw} min={0} max={gpaEx.maxU} step={gpaEx.step} /></Field>
+        <Field label="Unweighted GPA" invalid={highlight && e.gpaUnweighted == null}><NumberInput value={e.gpaUnweighted} onChange={(v) => set({ gpaUnweighted: v })} placeholder={gpaEx.unw} min={0} max={gpaEx.maxU} step={gpaEx.step} /></Field>
         <Field label="Weighted GPA"><NumberInput value={e.gpaWeighted} onChange={(v) => set({ gpaWeighted: v })} placeholder={gpaEx.w} min={0} max={gpaEx.maxW} step={gpaEx.step} /></Field>
       </div>
     </div>
@@ -325,36 +473,87 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
 }
 
 /* ---------------- Step 3: Testing ---------------- */
+const IB_SUBJECT_OPTIONS = (query: string, taken: string[]): ComboOption[] => {
+  const q = query.trim().toLowerCase();
+  return IB_SUBJECTS.filter((sub) => !taken.includes(sub) && (!q || sub.toLowerCase().includes(q))).map((sub) => ({ value: sub, label: sub }));
+};
+const A_LEVEL_SUBJECT_OPTIONS = (query: string): ComboOption[] => {
+  const q = query.trim().toLowerCase();
+  return A_LEVEL_SUBJECTS.filter((sub) => !q || sub.toLowerCase().includes(q)).map((sub) => ({ value: sub, label: sub }));
+};
+
 function StepTesting({ profile, setProfile }: StepProps) {
   const t = profile.testing;
+  const highlight = !!profile.meta.resumeApplied;
   const set = (patch: Partial<typeof t>) => setProfile((p) => ({ ...p, testing: { ...p.testing, ...patch } }));
 
-  const chosenSubjects = t.ap.map((a) => a.subject).filter(Boolean);
+  const hasAnyTest =
+    t.sat != null || t.act != null ||
+    t.ap.some((a) => a.subject) || t.ib.some((a) => a.subject) || t.aLevel.some((a) => a.subject);
+  const testingInvalid = highlight && !t.noTestsYet && !hasAnyTest;
 
-  function setAp(idx: number, patch: Partial<{ subject: string; score: number | null }>) {
+  /* ---- AP ---- */
+  const chosenAp = t.ap.map((a) => a.subject).filter(Boolean);
+  function setAp(idx: number, patch: Partial<APEntry>) {
     setProfile((p) => {
       const ap = p.testing.ap.map((a, i) => (i === idx ? { ...a, ...patch } : a));
-      // auto-add empty row when last row gets a subject
-      if (idx === ap.length - 1 && (patch.subject ?? ap[idx].subject)) {
-        ap.push({ subject: "", score: null });
-      }
+      if (idx === ap.length - 1 && (patch.subject ?? ap[idx].subject)) ap.push(emptyApRow());
       return { ...p, testing: { ...p.testing, ap } };
     });
   }
   function removeAp(idx: number) {
     setProfile((p) => {
       let ap = p.testing.ap.filter((_, i) => i !== idx);
-      if (ap.length === 0 || ap[ap.length - 1].subject) ap = [...ap, { subject: "", score: null }];
+      if (ap.length === 0 || ap[ap.length - 1].subject) ap = [...ap, emptyApRow()];
       return { ...p, testing: { ...p.testing, ap } };
     });
   }
 
+  /* ---- IB subjects ---- */
+  const chosenIb = t.ib.map((a) => a.subject).filter(Boolean);
+  function setIb(idx: number, patch: Partial<IBEntry>) {
+    setProfile((p) => {
+      const ib = p.testing.ib.map((a, i) => (i === idx ? { ...a, ...patch } : a));
+      if (idx === ib.length - 1 && (patch.subject ?? ib[idx].subject)) ib.push(emptyIbRow());
+      return { ...p, testing: { ...p.testing, ib } };
+    });
+  }
+  function removeIb(idx: number) {
+    setProfile((p) => {
+      let ib = p.testing.ib.filter((_, i) => i !== idx);
+      if (ib.length === 0 || ib[ib.length - 1].subject) ib = [...ib, emptyIbRow()];
+      return { ...p, testing: { ...p.testing, ib } };
+    });
+  }
+  function setCore(part: keyof IBCore, patch: Record<string, string>) {
+    setProfile((p) => ({ ...p, testing: { ...p.testing, ibCore: { ...p.testing.ibCore, [part]: { ...p.testing.ibCore[part], ...patch } } } }));
+  }
+
+  /* ---- A-Level ---- */
+  function setAl(idx: number, patch: Partial<ALevelEntry>) {
+    setProfile((p) => {
+      const aLevel = p.testing.aLevel.map((a, i) => (i === idx ? { ...a, ...patch } : a));
+      if (idx === aLevel.length - 1 && (patch.subject ?? aLevel[idx].subject)) aLevel.push(emptyALevelRow());
+      return { ...p, testing: { ...p.testing, aLevel } };
+    });
+  }
+  function removeAl(idx: number) {
+    setProfile((p) => {
+      let aLevel = p.testing.aLevel.filter((_, i) => i !== idx);
+      if (aLevel.length === 0 || aLevel[aLevel.length - 1].subject) aLevel = [...aLevel, emptyALevelRow()];
+      return { ...p, testing: { ...p.testing, aLevel } };
+    });
+  }
+
   return (
-    <div className={s.card}>
+    <div className={s.card} data-invalid={testingInvalid ? "true" : undefined}>
       <label className={s.checkRow} style={{ marginBottom: "1rem" }}>
         <input type="checkbox" checked={t.noTestsYet} onChange={(e) => set({ noTestsYet: e.target.checked })} />
         I haven&apos;t taken any standardized tests yet
       </label>
+      {testingInvalid && (
+        <p className="field-needs" style={{ marginBottom: "1rem" }}>Add a score or at least one subject — or check the box above if you haven&apos;t tested yet.</p>
+      )}
 
       {!t.noTestsYet && (
         <>
@@ -363,36 +562,179 @@ function StepTesting({ profile, setProfile }: StepProps) {
             <Field label="ACT score" hint="1–36"><NumberInput value={t.act} onChange={(v) => set({ act: v })} placeholder="e.g. 35" min={1} max={36} /></Field>
           </div>
 
-          <div className={s.subhead}>AP / IB subjects</div>
-          <div className={s.apList}>
-            {t.ap.map((a, i) => {
-              const taken = chosenSubjects.filter((sub) => sub !== a.subject);
-              return (
-                <div key={i} className={s.apRow}>
-                  <Combobox
-                    value={a.subject}
-                    onChange={(v) => setAp(i, { subject: v })}
-                    placeholder="Pick or type (e.g. lang, gov, calc bc)"
-                    minChars={0}
-                    allowFreeText={false}
-                    preferUp
-                    emptyHint="No matching AP — try a shorter word"
-                    getOptions={(q) => AP_MATCH_OPTIONS(q, taken)}
-                  />
-                  <select className="select" style={{ maxWidth: 120 }} value={a.score ?? ""} onChange={(e) => setAp(i, { score: e.target.value ? Number(e.target.value) : null })}>
-                    <option value="">Score</option>
-                    {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                  {a.subject ? (
-                    <button type="button" className={s.removeBtn} onClick={() => removeAp(i)} aria-label={`Remove ${a.subject}`}>×</button>
-                  ) : (
-                    <span className={s.removeSpacer} aria-hidden />
-                  )}
-                </div>
-              );
-            })}
+          <div className={s.subhead}>Subject exams</div>
+          <p className="field-hint" style={{ marginBottom: "0.7rem" }}>Choose the exam system you take. You can enter AP, IB, or A-Level subjects.</p>
+          <div className={s.examTabs} role="tablist" aria-label="Exam system">
+            {EXAM_TYPES.map((ex) => (
+              <button
+                key={ex.id}
+                type="button"
+                role="tab"
+                className={s.examTab}
+                data-active={t.examType === ex.id}
+                aria-selected={t.examType === ex.id}
+                onClick={() => set({ examType: ex.id })}
+              >
+                {ex.label}
+              </button>
+            ))}
           </div>
-          <p className="field-hint">Type any shorthand — “lang”, “ap gov”, “calc bc” all work. A new row appears automatically; you can&apos;t pick the same subject twice.</p>
+
+          {t.examType === "AP" && (
+            <>
+              <div className={s.apList}>
+                {t.ap.map((a, i) => {
+                  const taken = chosenAp.filter((sub) => sub !== a.subject);
+                  return (
+                    <div key={i} className={s.apRow}>
+                      <Combobox
+                        value={a.subject}
+                        onChange={(v) => setAp(i, { subject: v })}
+                        placeholder="Pick or type (e.g. lang, gov, calc bc)"
+                        minChars={0}
+                        allowFreeText={false}
+                        preferUp
+                        emptyHint="No matching AP — try a shorter word"
+                        getOptions={(q) => AP_MATCH_OPTIONS(q, taken)}
+                      />
+                      <select className="select" style={{ maxWidth: 120 }} value={a.score ?? ""} onChange={(e) => setAp(i, { score: e.target.value ? Number(e.target.value) : null })}>
+                        <option value="">Score</option>
+                        {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                      {a.subject ? (
+                        <button type="button" className={s.removeBtn} onClick={() => removeAp(i)} aria-label={`Remove ${a.subject}`}>×</button>
+                      ) : (
+                        <span className={s.removeSpacer} aria-hidden />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="field-hint">Type any shorthand — “lang”, “ap gov”, “calc bc” all work. A new row appears automatically; you can&apos;t pick the same subject twice.</p>
+            </>
+          )}
+
+          {t.examType === "IB" && (
+            <>
+              <div className={s.ibCore}>
+                <div className={s.subhead} style={{ margin: "0 0 0.8rem" }}>IB Core</div>
+                <div className={s.ibCoreRow}>
+                  <span className={s.ibCoreLabel}>Theory of Knowledge (TOK)<span className={s.ibCoreHint}>Graded A–E; contributes bonus points</span></span>
+                  <select className="select" value={t.ibCore.tok.status} onChange={(e) => setCore("tok", { status: e.target.value })}>
+                    <option value="">Status</option>
+                    {IB_CORE_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <select className="select" value={t.ibCore.tok.grade} onChange={(e) => setCore("tok", { grade: e.target.value })}>
+                    <option value="">Grade</option>
+                    {IB_CORE_GRADES.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className={s.ibCoreRow}>
+                  <span className={s.ibCoreLabel}>Extended Essay (EE)<span className={s.ibCoreHint}>Graded A–E; contributes bonus points</span></span>
+                  <select className="select" value={t.ibCore.ee.status} onChange={(e) => setCore("ee", { status: e.target.value })}>
+                    <option value="">Status</option>
+                    {IB_CORE_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <select className="select" value={t.ibCore.ee.grade} onChange={(e) => setCore("ee", { grade: e.target.value })}>
+                    <option value="">Grade</option>
+                    {IB_CORE_GRADES.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className={s.ibCoreRow}>
+                  <span className={s.ibCoreLabel}>Creativity, Activity, Service (CAS)<span className={s.ibCoreHint}>Pass/complete — not graded</span></span>
+                  <select className="select" value={t.ibCore.cas.status} onChange={(e) => setCore("cas", { status: e.target.value })}>
+                    <option value="">Status</option>
+                    {IB_CAS_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <span aria-hidden />
+                </div>
+              </div>
+
+              <div className={s.subhead} style={{ marginTop: "1rem" }}>IB subjects</div>
+              <div className={s.apList}>
+                {t.ib.map((a, i) => {
+                  const taken = chosenIb.filter((sub) => sub !== a.subject);
+                  return (
+                    <div key={i} className={s.ibRow}>
+                      <Combobox
+                        value={a.subject}
+                        onChange={(v) => setIb(i, { subject: v })}
+                        placeholder="Search IB subject"
+                        minChars={0}
+                        preferUp
+                        emptyHint="No matching subject — you can type your own"
+                        getOptions={(q) => IB_SUBJECT_OPTIONS(q, taken)}
+                      />
+                      <select className="select" value={a.level} onChange={(e) => setIb(i, { level: e.target.value as IBEntry["level"] })}>
+                        <option value="">Level</option>
+                        {IB_LEVELS.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                      <select className="select" value={a.score ?? ""} onChange={(e) => setIb(i, { score: e.target.value ? Number(e.target.value) : null })}>
+                        <option value="">Score</option>
+                        {[7, 6, 5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                      <select className="select" value={a.status} onChange={(e) => setIb(i, { status: e.target.value })}>
+                        <option value="">Status</option>
+                        {IB_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                      {a.subject ? (
+                        <button type="button" className={s.removeBtn} onClick={() => removeIb(i)} aria-label={`Remove ${a.subject}`}>×</button>
+                      ) : (
+                        <span className={s.removeSpacer} aria-hidden />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="field-hint">IB subjects are scored 1–7. A new row appears automatically as you add subjects.</p>
+            </>
+          )}
+
+          {t.examType === "A-Level" && (
+            <>
+              <div className={s.apList}>
+                {t.aLevel.map((a, i) => (
+                  <div key={i} className={s.aLevelRow}>
+                    <select className="select" value={a.category} onChange={(e) => setAl(i, { category: e.target.value })}>
+                      <option value="">Category</option>
+                      {A_LEVEL_CATEGORIES.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <Combobox
+                      value={a.subject}
+                      onChange={(v) => setAl(i, { subject: v })}
+                      placeholder="Search subject"
+                      minChars={0}
+                      preferUp
+                      emptyHint="No matching subject — you can type your own"
+                      getOptions={A_LEVEL_SUBJECT_OPTIONS}
+                    />
+                    <select className="select" value={a.level} onChange={(e) => setAl(i, { level: e.target.value as ALevelEntry["level"] })}>
+                      <option value="">Level</option>
+                      {A_LEVEL_LEVELS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <select className="select" value={a.grade} onChange={(e) => setAl(i, { grade: e.target.value })}>
+                      <option value="">Grade</option>
+                      {A_LEVEL_GRADES.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <select className="select" value={a.status} onChange={(e) => setAl(i, { status: e.target.value })}>
+                      <option value="">Status</option>
+                      {A_LEVEL_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <select className="select" value={a.board} onChange={(e) => setAl(i, { board: e.target.value })}>
+                      <option value="">Exam board</option>
+                      {EXAM_BOARDS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    {a.subject ? (
+                      <button type="button" className={s.removeBtn} onClick={() => removeAl(i)} aria-label={`Remove ${a.subject}`}>×</button>
+                    ) : (
+                      <span className={s.removeSpacer} aria-hidden />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="field-hint">A-Levels are graded A*–E. Add each subject with its level and exam board. A new row appears automatically.</p>
+            </>
+          )}
         </>
       )}
     </div>
@@ -491,10 +833,16 @@ function StepAwards({ profile, setProfile }: StepProps) {
     });
   }
 
+  const needsAward = !!profile.meta.resumeApplied && !profile.awards.some((a) => a.title);
+
   return (
     <div className={s.card}>
       <ResumeImport target="awards" label="Import awards from your résumé" onExtract={(r) => importAwards(r.awards)} />
-      <p className="field-hint" style={{ marginBottom: "1rem" }}>Add honors and awards. A new row appears as you go — empty rows are ignored.</p>
+      {needsAward ? (
+        <p className="field-needs" style={{ marginBottom: "1rem" }}>Your résumé didn&apos;t list any awards — add at least one honor below, or continue if you have none.</p>
+      ) : (
+        <p className="field-hint" style={{ marginBottom: "1rem" }}>Add honors and awards. A new row appears as you go — empty rows are ignored.</p>
+      )}
       {profile.awards.map((a, i) => (
         <div key={i} className={s.repeatRow}>
           <TextInput value={a.title} onChange={(v) => setAward(i, { title: v })} placeholder="Award / honor" />
@@ -509,6 +857,9 @@ function StepAwards({ profile, setProfile }: StepProps) {
 
 /* ---------------- Step 6: Activities ---------------- */
 function StepActivities({ profile, setProfile }: StepProps) {
+  const [tidying, setTidying] = useState<number | null>(null);
+  const needsActivity = !!profile.meta.resumeApplied && !profile.activities.some((a) => a.type || a.organization || a.description);
+
   function setAct(idx: number, patch: Partial<(typeof profile.activities)[number]>) {
     setProfile((p) => {
       const activities = p.activities.map((a, i) => (i === idx ? { ...a, ...patch } : a));
@@ -544,10 +895,35 @@ function StepActivities({ profile, setProfile }: StepProps) {
     });
   }
 
+  // AI-rewrite a description to <=150 chars (preserving meaning); falls back to
+  // a clean truncation offline or on error.
+  async function tidyDescription(idx: number, text: string) {
+    if (!text.trim()) return;
+    setTidying(idx);
+    try {
+      const res = await fetch("/api/tidy-activity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      const out = String(data.description || "").trim() || tidyText(text, 150);
+      setAct(idx, { description: out });
+    } catch {
+      setAct(idx, { description: tidyText(text, 150) });
+    } finally {
+      setTidying(null);
+    }
+  }
+
   return (
     <div className={s.card}>
       <ResumeImport target="activities" label="Import activities from your résumé" onExtract={(r) => importActivities(r.activities)} />
-      <p className="field-hint" style={{ marginBottom: "1rem" }}>Paste long descriptions freely — use “Tidy with AI” to fit the 150-character limit.</p>
+      {needsActivity ? (
+        <p className="field-needs" style={{ marginBottom: "1rem" }}>Your résumé didn&apos;t list any activities — add at least one below so we can evaluate your involvement.</p>
+      ) : (
+        <p className="field-hint" style={{ marginBottom: "1rem" }}>Paste long descriptions freely — use “Tidy with AI” to rewrite them under the 150-character limit.</p>
+      )}
       {profile.activities.map((a, i) => {
         const count = a.description.length;
         return (
@@ -580,8 +956,8 @@ function StepActivities({ profile, setProfile }: StepProps) {
             />
             <div className={s.actFooter}>
               <span className={count > 150 ? s.countOver : s.count}>{count}/150</span>
-              <button className="btn btn-ghost" style={{ padding: "0.35rem 0.7rem", fontSize: "0.82rem" }} onClick={() => setAct(i, { description: tidyText(a.description, 150) })} disabled={count === 0}>
-                <Icon name="sparkle" size={14} /> Tidy with AI
+              <button className="btn btn-ghost" style={{ padding: "0.35rem 0.7rem", fontSize: "0.82rem" }} onClick={() => tidyDescription(i, a.description)} disabled={count === 0 || tidying === i}>
+                <Icon name="sparkle" size={14} /> {tidying === i ? "Rewriting…" : "Tidy with AI"}
               </button>
             </div>
           </div>
@@ -602,7 +978,7 @@ function StepReview({ profile, setProfile, onEdit }: StepProps & { onEdit: (n: n
       <div className={s.reviewGrid}>
         <ReviewItem step={1} title="Basic" onEdit={onEdit} lines={[`${profile.basic.firstName} ${profile.basic.lastName}`.trim() || "—", profile.basic.schoolYear || "—"]} />
         <ReviewItem step={2} title="Education" onEdit={onEdit} lines={[profile.education.school || "—", profile.education.gpaUnweighted ? `GPA ${profile.education.gpaUnweighted}` : "GPA —"]} />
-        <ReviewItem step={3} title="Testing" onEdit={onEdit} lines={[profile.testing.sat ? `SAT ${profile.testing.sat}` : profile.testing.act ? `ACT ${profile.testing.act}` : "No scores", `${profile.testing.ap.filter((a) => a.subject).length} AP`]} />
+        <ReviewItem step={3} title="Testing" onEdit={onEdit} lines={[profile.testing.sat ? `SAT ${profile.testing.sat}` : profile.testing.act ? `ACT ${profile.testing.act}` : "No scores", testingSummary(profile.testing)]} />
         <ReviewItem step={4} title="Preference" onEdit={onEdit} lines={[`${profile.preference.interests.length} interests`, `${profile.preference.regions.length} regions`]} />
         <ReviewItem step={5} title="Awards" onEdit={onEdit} lines={[`${awards.length} awards`]} />
         <ReviewItem step={6} title="Activities" onEdit={onEdit} lines={[`${acts.length} activities`]} />
@@ -630,6 +1006,19 @@ function StepReview({ profile, setProfile, onEdit }: StepProps & { onEdit: (n: n
       )}
     </div>
   );
+}
+
+function testingSummary(t: StudentProfile["testing"]): string {
+  if (t.examType === "IB") {
+    const n = t.ib.filter((a) => a.subject).length;
+    return `${n} IB subject${n === 1 ? "" : "s"}`;
+  }
+  if (t.examType === "A-Level") {
+    const n = t.aLevel.filter((a) => a.subject).length;
+    return `${n} A-Level${n === 1 ? "" : "s"}`;
+  }
+  const n = t.ap.filter((a) => a.subject).length;
+  return `${n} AP`;
 }
 
 function ReviewItem({ step, title, lines, onEdit }: { step: number; title: string; lines: string[]; onEdit: (n: number) => void }) {

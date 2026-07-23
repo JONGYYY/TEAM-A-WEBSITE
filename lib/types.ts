@@ -47,10 +47,41 @@ export interface APEntry {
   score: number | null;
 }
 
+export type ExamType = "AP" | "IB" | "A-Level";
+
+/** One IB Diploma subject (6 subjects across HL/SL, each scored 1-7). */
+export interface IBEntry {
+  subject: string;
+  level: "HL" | "SL" | "";
+  score: number | null; // 1-7
+  status: string;
+}
+
+/** IB core components: TOK & EE are graded A-E (bonus points); CAS is pass/complete. */
+export interface IBCore {
+  tok: { status: string; grade: string };
+  ee: { status: string; grade: string };
+  cas: { status: string };
+}
+
+/** One A-Level / AS-Level subject. */
+export interface ALevelEntry {
+  category: string;
+  subject: string;
+  level: "A-Level" | "AS-Level" | "";
+  grade: string; // A*, A, B, C, D, E
+  status: string;
+  board: string;
+}
+
 export interface Testing {
+  examType: ExamType;
   sat: number | null;
   act: number | null;
   ap: APEntry[];
+  ib: IBEntry[];
+  ibCore: IBCore;
+  aLevel: ALevelEntry[];
   noTestsYet: boolean;
 }
 
@@ -88,7 +119,7 @@ export interface StudentProfile {
   preference: Preference;
   awards: Award[];
   activities: Activity[];
-  meta: { lastStep: number; updatedAt: string };
+  meta: { lastStep: number; updatedAt: string; resumeApplied?: boolean };
 }
 
 export interface AssessmentReport {

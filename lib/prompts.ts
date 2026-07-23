@@ -1,5 +1,21 @@
 import type { StudentProfile } from "./types";
-import { ACTIVITY_TYPES, RECOGNITION_LEVELS } from "./taxonomy";
+import {
+  ACTIVITY_TYPES,
+  RECOGNITION_LEVELS,
+  GENDERS,
+  SCHOOL_YEARS,
+  GPA_SCALES,
+  IB_SUBJECTS,
+  IB_LEVELS,
+  IB_STATUSES,
+  IB_CORE_GRADES,
+  A_LEVEL_CATEGORIES,
+  A_LEVEL_SUBJECTS,
+  A_LEVEL_LEVELS,
+  A_LEVEL_GRADES,
+  A_LEVEL_STATUSES,
+  EXAM_BOARDS,
+} from "./taxonomy";
 
 /* =========================================================================
    RÉSUMÉ EXTRACTION
@@ -44,6 +60,86 @@ ${resumeText.slice(0, 12000)}
 }
 
 /* =========================================================================
+   FULL PROFILE EXTRACTION (résumé -> partial profile spanning all steps)
+   ========================================================================= */
+
+export const PROFILE_EXTRACT_SYSTEM = `You read a student's résumé/CV text and extract a STRUCTURED PARTIAL PROFILE to pre-fill an application builder. You cover basic info, education, testing (AP OR IB OR A-Level), awards, and activities.
+
+ABSOLUTE RULES
+- EVIDENCE ONLY. Extract only what is explicitly written. NEVER invent names, schools, scores, GPAs, or achievements. If something is not stated, leave it "" (string), null (number), or [] (array).
+- Do NOT copy raw text, headers, file metadata, or symbols. Produce clean, human values only.
+- Map free text to the CLOSEST option in the controlled vocabularies below. If nothing fits, use "".
+- Numbers must be plain numbers (no units). Respect ranges: SAT 400-1600, ACT 1-36, AP score 1-5, IB subject score 1-7, unweighted GPA usually 0-4 (or per scale), classSize/classRank positive integers.
+- Keep every activity "description" under 150 characters, factual, no hype.
+
+EXAM TYPE (single choice)
+- Set testing.examType to whichever ONE system dominates the résumé: "AP" (US AP exams), "IB" (International Baccalaureate), or "A-Level" (GCE/Cambridge A-Levels). Default "AP" if unclear.
+- Only populate the array for the chosen system; leave the others empty. If AP: fill "ap". If IB: fill "ib" (+ "ibCore" if TOK/EE/CAS mentioned). If A-Level: fill "aLevel".
+
+Controlled vocabularies:
+- basic.gender ∈ ${JSON.stringify(GENDERS)}
+- basic.schoolYear ∈ ${JSON.stringify(SCHOOL_YEARS)}
+- education.gpaScale ∈ ${JSON.stringify(GPA_SCALES)}
+- activity.type ∈ ${JSON.stringify(ACTIVITY_TYPES)}
+- award.recognition ∈ ${JSON.stringify(RECOGNITION_LEVELS)} (School < Regional < State < National < International)
+- ib.subject ∈ ${JSON.stringify(IB_SUBJECTS)} (closest match)
+- ib.level ∈ ${JSON.stringify(IB_LEVELS)}
+- ib.status / ibCore statuses ∈ ${JSON.stringify(IB_STATUSES)}
+- ibCore.tok.grade / ibCore.ee.grade ∈ ${JSON.stringify(IB_CORE_GRADES)}
+- aLevel.category ∈ ${JSON.stringify(A_LEVEL_CATEGORIES)}
+- aLevel.subject ∈ ${JSON.stringify(A_LEVEL_SUBJECTS)} (closest match)
+- aLevel.level ∈ ${JSON.stringify(A_LEVEL_LEVELS)}
+- aLevel.grade ∈ ${JSON.stringify(A_LEVEL_GRADES)}
+- aLevel.status ∈ ${JSON.stringify(A_LEVEL_STATUSES)}
+- aLevel.board ∈ ${JSON.stringify(EXAM_BOARDS)}
+- For AP subjects, write the full "AP <Subject>" name if clearly identifiable, else "" (the server snaps it to the official catalog).
+- grade levels use "9th","10th","11th","12th" when stated/implied, else "".
+
+Output STRICT JSON only (no markdown), matching this schema. All keys present; unknowns empty/null.
+{
+  "basic": { "firstName": string, "middleName": string, "lastName": string, "gender": string, "schoolYear": string, "gradYear": number|null },
+  "education": { "school": string, "country": string, "state": string, "city": string, "classSize": number|null, "classRank": number|null, "gpaScale": string, "gpaUnweighted": number|null, "gpaWeighted": number|null },
+  "testing": {
+    "examType": "AP"|"IB"|"A-Level",
+    "sat": number|null, "act": number|null,
+    "ap": [{ "subject": string, "score": number|null }],
+    "ib": [{ "subject": string, "level": "HL"|"SL"|"", "score": number|null, "status": string }],
+    "ibCore": { "tok": { "status": string, "grade": string }, "ee": { "status": string, "grade": string }, "cas": { "status": string } },
+    "aLevel": [{ "category": string, "subject": string, "level": "A-Level"|"AS-Level"|"", "grade": string, "status": string, "board": string }]
+  },
+  "awards": [{ "title": string, "gradeLevel": string, "recognition": string }],
+  "activities": [{ "type": string, "position": string, "organization": string, "grades": string[], "weeksPerYear": number|null, "hoursPerWeek": number|null, "description": string }]
+}`;
+
+export function buildProfileExtractUser(resumeText: string) {
+  return `Extract the partial profile from this résumé text. Return JSON ONLY.
+
+"""
+${resumeText.slice(0, 14000)}
+"""`;
+}
+
+/* =========================================================================
+   ACTIVITY DESCRIPTION TIDY (AI rewrite to <=150 chars, preserve meaning)
+   ========================================================================= */
+
+export const ACTIVITY_TIDY_SYSTEM = `You rewrite a single college-application activity description so it is at most 150 characters while preserving its concrete meaning.
+
+Rules:
+- Keep the same facts, role, and impact. Do NOT invent metrics, titles, or achievements not present.
+- Prefer strong action verbs; cut filler and repetition. Keep it factual, no hype, first-person implied (no "I").
+- The result MUST be <= 150 characters (count characters, not words). One sentence or two short clauses.
+- Return STRICT JSON only: { "description": string }`;
+
+export function buildActivityTidyUser(text: string) {
+  return `Rewrite this activity description to <=150 characters, preserving meaning. Return JSON ONLY.
+
+"""
+${text.slice(0, 1200)}
+"""`;
+}
+
+/* =========================================================================
    ADMISSIONS EVALUATION
    ========================================================================= */
 
@@ -83,7 +179,7 @@ CORE PRINCIPLES
 6. NO OVERGENERALIZATION. Avoid sweeping claims ("you will get into X", "guaranteed", "no chance"). Speak in terms of profile strength and fit relative to a competitive applicant pool, not deterministic outcomes.
 
 SCORING — every radar axis is 1.0–5.0 (one decimal). overallScore is ALSO on the 1.0–5.0 scale (one decimal) — a holistic weighted read, NOT a 0–100 number and NOT a percentage. Anchors:
-- academic: GPA, rigor (AP/IB count + scores), testing relative to target tier. 5=top-decile rigor+results for the target tier; 3=solid/average; 1=well below or largely missing with no context.
+- academic: GPA, rigor (AP exam count+scores 1-5, OR IB subjects HL/SL scores 1-7 + TOK/EE/CAS core, OR A-Level subjects with grades A*-E), testing relative to target tier. Read testing.examType to know which system the student uses and judge rigor within that system. 5=top-decile rigor+results for the target tier; 3=solid/average; 1=well below or largely missing with no context.
 - extracurricular: depth, leadership, impact, sustained commitment. Classify items into tiers 1 (national/exceptional) to 4 (participatory). 5=clear Tier-1/2 leadership with impact; 3=steady involvement; 1=little/none.
 - career: clarity and coherence of direction tied to interests + activities. 5=focused, evidenced trajectory; 3=emerging direction; 1=undefined (note: undefined is normal for 9th/10th — calibrate).
 - awards: selectivity and level (School→International) and quantity. 5=national/international honors; 3=regional/state; 1=none yet.
@@ -110,7 +206,10 @@ export function buildEvalUser(profile: StudentProfile) {
     targetSelectivity: profile.intake.targetSelectivity ?? "unspecified",
     primaryGoal: profile.intake.primaryGoal ?? "unspecified",
     hasTestScores: !!(profile.testing.sat || profile.testing.act),
+    examType: profile.testing.examType,
     apCount: profile.testing.ap.filter((a) => a.subject).length,
+    ibCount: profile.testing.ib.filter((a) => a.subject).length,
+    aLevelCount: profile.testing.aLevel.filter((a) => a.subject).length,
     awardCount: profile.awards.filter((a) => a.title).length,
     activityCount: profile.activities.filter((a) => a.type || a.organization).length,
     note:

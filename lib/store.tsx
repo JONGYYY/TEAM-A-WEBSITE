@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import type { StudentProfile, AssessmentReport } from "./types";
-import { emptyProfile } from "./taxonomy";
+import { emptyProfile, normalizeProfile } from "./taxonomy";
 import { useAuth } from "./auth";
 import { bucketKey } from "./storageKeys";
 
@@ -30,7 +30,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (!authHydrated) return;
     try {
       const raw = localStorage.getItem(bucketKey(email, "profile"));
-      setProfileState(raw ? { ...emptyProfile(), ...JSON.parse(raw) } : emptyProfile());
+      setProfileState(raw ? normalizeProfile(JSON.parse(raw)) : emptyProfile());
       const a = localStorage.getItem(bucketKey(email, "assessment"));
       setAssessmentState(a ? JSON.parse(a) : null);
     } catch {

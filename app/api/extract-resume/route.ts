@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { chatJSON, hasOpenAI, EXTRACT_MODEL } from "@/lib/openai";
 import { RESUME_EXTRACT_SYSTEM, buildResumeExtractUser } from "@/lib/prompts";
 import { parseResume } from "@/lib/autofill";
+import { fileToText } from "@/lib/serverExtract";
 import { emptyProfile, ACTIVITY_TYPES, RECOGNITION_LEVELS } from "@/lib/taxonomy";
 import type { Award, Activity } from "@/lib/types";
 
@@ -60,49 +61,7 @@ async function readInput(req: Request): Promise<{ text: string; target: Target }
   const target = normalizeTarget(form.get("target") as string | null);
   const file = form.get("file") as File | null;
   if (!file) return { text: (form.get("text") as string) || "", target };
-  const buf = Buffer.from(await file.arrayBuffer());
-  const name = (file.name || "").toLowerCase();
-  const type = file.type || "";
-  if (name.endsWith(".pdf") || type === "application/pdf") {
-    return { text: await extractPdf(buf), target };
-  }
-  if (
-    name.endsWith(".docx") ||
-    type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  ) {
-    return { text: await extractDocx(buf), target };
-  }
-  // .txt / .md / plain text
-  return { text: buf.toString("utf8"), target };
-}
-
-async function extractPdf(buf: Buffer): Promise<string> {
-  try {
-    // Import the lib entry directly to avoid pdf-parse's debug self-test.
-    // @ts-expect-error - no bundled types
-    const mod = await import("pdf-parse/lib/pdf-parse.js");
-    const pdfParse = mod.default || mod;
-    const data = await pdfParse(buf);
-    return data.text || "";
-  } catch {
-    return "";
-  }
-}
-
-async function extractDocx(buf: Buffer): Promise<string> {
-  try {
-    // mammoth is CJS; handle both default and namespace interop shapes.
-    const mod = (await import("mammoth")) as unknown as {
-      default?: { extractRawText: (o: { buffer: Buffer }) => Promise<{ value: string }> };
-      extractRawText?: (o: { buffer: Buffer }) => Promise<{ value: string }>;
-    };
-    const extractRawText = mod.default?.extractRawText ?? mod.extractRawText;
-    if (!extractRawText) return "";
-    const { value } = await extractRawText({ buffer: buf });
-    return value || "";
-  } catch {
-    return "";
-  }
+  return { text: await fileToText(file), target };
 }
 
 function normalizeTarget(t: string | null | undefined): Target {
