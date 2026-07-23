@@ -9,9 +9,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const stored = (localStorage.getItem("dc.theme") as Theme) || "light";
-    setTheme(stored);
-    document.documentElement.setAttribute("data-theme", stored);
+    const stored = localStorage.getItem("dc.theme") as Theme | null;
+    const resolved = stored ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    setTheme(resolved);
+    document.documentElement.setAttribute("data-theme", resolved);
   }, []);
 
   const toggle = () => {

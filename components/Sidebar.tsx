@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./Icon";
@@ -61,7 +62,7 @@ const COUNSELOR_NAV: NavSection[] = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { profile, hydrated } = useStore();
   const { role, hydrated: authHydrated } = useAuth();
@@ -70,8 +71,24 @@ export function Sidebar() {
   const isCounselor = authHydrated && role === "counselor";
   const NAV = isCounselor ? COUNSELOR_NAV : STUDENT_NAV;
 
+  // Close the mobile drawer whenever the route changes.
+  useEffect(() => {
+    onClose?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // Close on Escape while the drawer is open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose?.(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   return (
-    <aside className={s.sidebar}>
+    <>
+      <div className={`${s.overlay} ${open ? s.overlayOpen : ""}`} onClick={onClose} aria-hidden="true" />
+      <aside className={s.sidebar} data-open={open}>
       <Link href="/dashboard" className={s.brand}>
         <span className={s.brandMark}>
           <Icon name="grad" size={20} />
@@ -81,6 +98,9 @@ export function Sidebar() {
           <br />
           <span className={s.brandSub}>College & Career</span>
         </span>
+        <button type="button" className={s.closeBtn} onClick={(e) => { e.preventDefault(); onClose?.(); }} aria-label="Close menu">
+          <Icon name="x" size={18} />
+        </button>
       </Link>
 
       {NAV.map((section) => (
@@ -117,6 +137,7 @@ export function Sidebar() {
           </div>
         </div>
       )}
-    </aside>
+      </aside>
+    </>
   );
 }
