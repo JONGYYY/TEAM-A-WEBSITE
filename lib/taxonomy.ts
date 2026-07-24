@@ -171,7 +171,7 @@ export function emptyProfile(): StudentProfile {
   return {
     intake: { grade: null, interests: [], primaryGoal: null, mood: null, targetSelectivity: null, completed: false },
     basic: { firstName: "", middleName: "", lastName: "", gender: "", schoolYear: "", gradYear: null, firstGen: "", familyIncomeBand: "", incomeOptIn: false },
-    education: { school: "", country: "United States", state: "", city: "", classSize: null, classRank: null, rankUnknown: false, gpaScale: "4.0", gpaUnweighted: null, gpaWeighted: null },
+    education: { school: "", country: "United States", state: "", city: "", classSize: null, classSizeUnknown: false, classRank: null, rankUnknown: false, gpaScale: "4.0", gpaUnweighted: null, gpaWeighted: null },
     testing: {
       examType: "AP",
       sat: null,

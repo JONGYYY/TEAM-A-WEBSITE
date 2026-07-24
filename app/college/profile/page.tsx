@@ -452,7 +452,17 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
           />
         </Field>
         <Field label="City"><TextInput value={e.city} onChange={(v) => set({ city: v })} placeholder="City" /></Field>
-        <Field label="Graduating class size" hint="Approximate — must be 0 or more"><NumberInput value={e.classSize} onChange={(v) => set({ classSize: v })} placeholder="e.g. 1390" min={0} /></Field>
+        <Field label="Graduating class size" hint="Approximate — must be 0 or more">
+          {e.classSizeUnknown ? (
+            <div className="muted" style={{ padding: "0.65rem 0" }}>Unknown</div>
+          ) : (
+            <NumberInput value={e.classSize} onChange={(v) => set({ classSize: v })} placeholder="e.g. 1390" min={0} />
+          )}
+          <label className={s.checkRow} style={{ marginTop: "0.4rem" }}>
+            <input type="checkbox" checked={e.classSizeUnknown} onChange={(ev) => set({ classSizeUnknown: ev.target.checked, classSize: ev.target.checked ? null : e.classSize })} />
+            I don&apos;t know my class size
+          </label>
+        </Field>
         <Field label="Class ranking">
           {e.rankUnknown ? (
             <div className="muted" style={{ padding: "0.65rem 0" }}>Not ranked / unknown</div>
@@ -546,7 +556,7 @@ function StepTesting({ profile, setProfile }: StepProps) {
   }
 
   return (
-    <div className={s.card} data-invalid={testingInvalid ? "true" : undefined}>
+    <div className={s.card}>
       <label className={s.checkRow} style={{ marginBottom: "1rem" }}>
         <input type="checkbox" checked={t.noTestsYet} onChange={(e) => set({ noTestsYet: e.target.checked })} />
         I haven&apos;t taken any standardized tests yet

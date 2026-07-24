@@ -35,6 +35,7 @@ export interface Education {
   state: string;
   city: string;
   classSize: number | null;
+  classSizeUnknown: boolean;
   classRank: number | null;
   rankUnknown: boolean;
   gpaScale: string;

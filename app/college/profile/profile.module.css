@@ -219,7 +219,7 @@
   border-radius: var(--r-md);
   padding: 1.1rem;
   margin-bottom: 1rem;
-  background: var(--paper-sunk);
+  background: var(--paper-raised);
 }
 .ibCoreRow {
   display: grid;
@@ -242,21 +242,21 @@
 }
 .ibRow > :first-child { min-width: 0; }
 
-/* A-Level subject rows */
+/* A-Level subject rows — flex-wrap so nothing gets squished on tight widths */
 .aLevelRow {
-  display: grid;
-  grid-template-columns: 150px 1fr 130px 110px 150px 150px 36px;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
   align-items: center;
   margin-bottom: 0.6rem;
 }
-.aLevelRow > :nth-child(2) { min-width: 0; }
+.aLevelRow > * { flex: 1 1 130px; min-width: 0; }
+.aLevelRow > :nth-child(2) { flex: 2 1 200px; } /* subject search gets more room */
+.aLevelRow > :last-child { flex: 0 0 32px; }     /* remove button / spacer */
 
 @media (max-width: 780px) {
   .ibRow { grid-template-columns: 1fr 1fr; }
   .ibRow > :last-child { grid-column: 1 / -1; justify-self: end; }
-  .aLevelRow { grid-template-columns: 1fr 1fr; }
-  .aLevelRow > :last-child { grid-column: 1 / -1; justify-self: end; }
   .ibCoreRow { grid-template-columns: 1fr; }
 }
 
