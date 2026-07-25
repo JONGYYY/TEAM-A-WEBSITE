@@ -15,10 +15,7 @@ interface NavSection { label: string; items: NavItem[] }
 const STUDENT_NAV: NavSection[] = [
   {
     label: "Overview",
-    items: [
-      { href: "/dashboard", icon: "gauge", name: "Dashboard" },
-      { href: "/team", icon: "users", name: "Meet the Team" },
-    ],
+    items: [{ href: "/dashboard", icon: "gauge", name: "Dashboard" }],
   },
   {
     label: "Quizzes",
@@ -51,10 +48,7 @@ const STUDENT_NAV: NavSection[] = [
 const COUNSELOR_NAV: NavSection[] = [
   {
     label: "Overview",
-    items: [
-      { href: "/dashboard", icon: "gauge", name: "Dashboard" },
-      { href: "/team", icon: "users", name: "Meet the Team" },
-    ],
+    items: [{ href: "/dashboard", icon: "gauge", name: "Dashboard" }],
   },
   {
     label: "Counselor",
