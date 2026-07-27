@@ -16,12 +16,20 @@ const BANDS: { band: Band; color: string; note: string }[] = [
   { band: "Likely", color: "var(--likely)", note: "Strong odds of admission" },
 ];
 
+const REC_BANDS: { key: "reach" | "target" | "likely"; label: string; note: string; color: string }[] = [
+  { key: "reach", label: "Reach", note: "Ambitious", color: "#e05a5a" },
+  { key: "target", label: "Target", note: "Well-matched", color: "#12a7bd" },
+  { key: "likely", label: "Likely", note: "Within reach", color: "#2fa56e" },
+];
+
 interface Shortlist { colleges: string[]; scholarships: string[] }
 
 export default function Colleges() {
-  const { profile, hydrated } = useStore();
+  const { profile, assessment, hydrated } = useStore();
   const [list, setList, lHydrated] = useUserLocal<Shortlist>("shortlist", { colleges: [], scholarships: [] });
   if (!hydrated || !lHydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
+
+  const recColleges = assessment?.recommendations?.colleges;
 
   const interests = Array.from(new Set([...profile.intake.interests, ...profile.preference.interests]));
   const sat = profile.testing.sat ?? (profile.testing.act ? Math.round(profile.testing.act * 44) : 0);
@@ -34,6 +42,49 @@ export default function Colleges() {
   return (
     <div className="container">
       <PageHeader eyebrow="College Planning · Colleges" title="Your Calibrated College List" lead={sat ? "Grouped by your real odds, using your scores and interests." : "Add test scores in your profile for sharper calibration. Showing interest-based fit for now."} />
+
+      {recColleges && (
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          className="surface"
+          style={{ padding: "1.5rem 1.6rem", marginBottom: "2rem", borderLeft: "3px solid var(--marigold)" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", marginBottom: "0.3rem" }}>
+            <Icon name="sparkle" size={18} />
+            <strong style={{ color: "var(--ink)" }}>Six best-fit schools from your evaluation</strong>
+          </div>
+          <p className="muted" style={{ fontSize: "0.88rem", margin: "0 0 1.2rem" }}>
+            {assessment?.recommendations?.summary || "Two reach, two target, and two likely schools tailored to your profile and preferences."}
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "1.2rem" }}>
+            {REC_BANDS.map((band) => (
+              <div key={band.key} className={p.bandCol}>
+                <div className={p.bandHead}>
+                  <span className={p.bandDot} style={{ background: band.color }} />
+                  <span className={p.bandTitle}>{band.label}</span>
+                  <span className={p.bandCount}>{recColleges[band.key].length}</span>
+                </div>
+                <p className="muted" style={{ fontSize: "0.78rem", margin: "0 0 0.4rem" }}>{band.note}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                  {recColleges[band.key].map((c) => (
+                    <div key={c.name} className={p.card} style={{ padding: "1rem", borderLeft: `3px solid ${band.color}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.6rem", alignItems: "baseline" }}>
+                        <span className={p.rowName}>{c.name}</span>
+                        <span className="tag-mono" style={{ color: "var(--ivy-bright)", whiteSpace: "nowrap" }}>{c.fit}%</span>
+                      </div>
+                      {c.location && <div className={p.rowSub}>{c.location}</div>}
+                      <p className="muted" style={{ fontSize: "0.82rem", margin: "0.5rem 0 0" }}>{c.why}</p>
+                    </div>
+                  ))}
+                  {recColleges[band.key].length === 0 && <p className="muted" style={{ fontSize: "0.82rem" }}>None in this band.</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+      )}
 
       {/* EA/ED strategy — rendered recommendation, never raw text */}
       <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} className="surface" style={{ padding: "1.4rem 1.6rem", marginBottom: "2rem", borderLeft: "3px solid var(--marigold)" }}>

@@ -61,16 +61,20 @@ export function Radar({
         return (
           <g
             key={i}
+            role={clickable ? "button" : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            aria-label={clickable ? `Jump to ${d.label}` : undefined}
             onClick={clickable ? () => onSelect!(i) : undefined}
-            style={clickable ? { cursor: "pointer" } : undefined}
+            onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect!(i); } } : undefined}
+            style={clickable ? { cursor: "pointer", pointerEvents: "auto" } : undefined}
           >
             {clickable && (
               <rect
-                x={x - 34}
-                y={y - 10}
-                width={68}
-                height={20}
-                rx={10}
+                x={x - 44}
+                y={y - 13}
+                width={88}
+                height={26}
+                rx={13}
                 fill="transparent"
               />
             )}
@@ -86,6 +90,7 @@ export function Radar({
                 fill: clickable ? "var(--ink-soft)" : "var(--ink-faint)",
                 textTransform: "uppercase",
                 fontWeight: clickable ? 600 : 400,
+                pointerEvents: "none",
               }}
             >
               {d.label}

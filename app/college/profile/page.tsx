@@ -12,7 +12,7 @@ import { ResumeImport } from "@/components/ResumeImport";
 import { matchAP } from "@/lib/apMatch";
 import { tidyText } from "@/lib/autofill";
 import {
-  GENDERS, SCHOOL_YEARS, FIRST_GEN, INCOME_BANDS, GPA_SCALES, RECOGNITION_LEVELS,
+  GENDERS, SCHOOL_YEARS, FIRST_GEN, GPA_SCALES, gpaScaleMeta, RECOGNITION_LEVELS,
   ACTIVITY_TYPES, INTERESTS, REGIONS, INSTITUTION_TYPES,
   SPECIAL_DESIGNATIONS, CAMPUS_CULTURE, SETTINGS, AID_IMPORTANCE, completionPct,
   NO_PREF, togglePref, searchStates,
@@ -111,10 +111,9 @@ function mergeResumePartial(prev: StudentProfile, partial: ResumePartial): Stude
   const pt = partial.testing;
   if (pt) {
     const t = next.testing;
-    const hasAny =
-      t.sat != null || t.act != null ||
-      t.ap.some((a) => a.subject) || t.ib.some((a) => a.subject) || t.aLevel.some((a) => a.subject);
-    if (!hasAny && pt.examType) t.examType = pt.examType;
+    // If the résumé reveals a system, make sure it's selected (keep any the
+    // student already chose — this is additive, never destructive).
+    if (pt.examType && !t.examTypes.includes(pt.examType)) t.examTypes = [...t.examTypes, pt.examType];
     if (t.sat == null && pt.sat != null) t.sat = pt.sat;
     if (t.act == null && pt.act != null) t.act = pt.act;
     if (pt.sat != null || pt.act != null) t.noTestsYet = false;
@@ -381,34 +380,13 @@ function StepBasic({ profile, setProfile }: StepProps) {
 
       <div className={s.sensitive}>
         <Field label="First-generation college student?"><Select value={b.firstGen} onChange={(v) => set({ firstGen: v })} options={FIRST_GEN} /></Field>
-        <Field label="Family income (US $) — optional">
-          <Select value={b.familyIncomeBand} onChange={(v) => set({ familyIncomeBand: v })} options={INCOME_BANDS} />
-        </Field>
         <div className="privacy-note">
           <Icon name="shield" size={16} />
-          <span>Used only to match financial aid &amp; scholarships. Stored on your device — never shared. Both fields are optional.</span>
+          <span>Optional — used only to surface relevant opportunities. Stored on your device, never shared.</span>
         </div>
-        <label className={s.checkRow}>
-          <input type="checkbox" checked={b.incomeOptIn} onChange={(e) => set({ incomeOptIn: e.target.checked })} />
-          Use my income to match scholarships
-        </label>
       </div>
     </div>
   );
-}
-
-/* GPA placeholders + input bounds adapt to the selected scale */
-function gpaExamples(scale: string): { unw: string; w: string; maxU?: number; maxW?: number; step: number } {
-  switch (scale) {
-    case "5.0":
-      return { unw: "e.g. 4.6", w: "e.g. 4.9", maxU: 5, maxW: 6, step: 0.01 };
-    case "100":
-      return { unw: "e.g. 95", w: "e.g. 98", maxU: 100, maxW: 110, step: 0.1 };
-    case "Other":
-      return { unw: "Your GPA", w: "Weighted GPA", maxU: undefined, maxW: undefined, step: 0.01 };
-    default: // 4.0
-      return { unw: "e.g. 3.95", w: "e.g. 4.61", maxU: 5, maxW: 6, step: 0.01 };
-  }
 }
 
 /* ---------------- Step 2: Education ---------------- */
@@ -416,7 +394,7 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
   const e = profile.education;
   const set = (patch: Partial<typeof e>) => setProfile((p) => ({ ...p, education: { ...p.education, ...patch } }));
   const optional = (grade ?? 11) <= 10;
-  const gpaEx = gpaExamples(e.gpaScale);
+  const gpaEx = gpaScaleMeta(e.gpaScale);
   // Only flag once a résumé has been applied, and never for underclassmen where academics are optional.
   const highlight = !!profile.meta.resumeApplied && !optional;
 
@@ -429,7 +407,7 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
         </div>
       )}
       <div className={s.grid2}>
-        <Field label="School name" hint="Start typing — pick from the list or enter your own" invalid={highlight && !e.school}>
+        <Field label="School name" required hint="Start typing — pick from the list or enter your own" invalid={highlight && !e.school}>
           <Combobox
             value={e.school}
             onChange={(v) => set({ school: v })}
@@ -441,7 +419,7 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
           />
         </Field>
         <Field label="Country"><TextInput value={e.country} onChange={(v) => set({ country: v })} placeholder="Country" /></Field>
-        <Field label="State / Province" hint="Type part of a state — e.g. “penn”, “NY”" invalid={highlight && !e.state}>
+        <Field label="State / Province" required hint="Type part of a state — e.g. “penn”, “NY”" invalid={highlight && !e.state}>
           <Combobox
             value={e.state}
             onChange={(v) => set({ state: v })}
@@ -474,8 +452,8 @@ function StepEducation({ profile, setProfile, grade }: StepProps) {
             My school doesn&apos;t rank / I don&apos;t know
           </label>
         </Field>
-        <Field label="GPA scale"><Select value={e.gpaScale} onChange={(v) => set({ gpaScale: v })} options={GPA_SCALES} placeholder="4.0" /></Field>
-        <Field label="Unweighted GPA" invalid={highlight && e.gpaUnweighted == null}><NumberInput value={e.gpaUnweighted} onChange={(v) => set({ gpaUnweighted: v })} placeholder={gpaEx.unw} min={0} max={gpaEx.maxU} step={gpaEx.step} /></Field>
+        <Field label="GPA scale" required><Select value={e.gpaScale} onChange={(v) => set({ gpaScale: v })} options={GPA_SCALES} placeholder="4.0" /></Field>
+        <Field label="Unweighted GPA" required invalid={highlight && e.gpaUnweighted == null}><NumberInput value={e.gpaUnweighted} onChange={(v) => set({ gpaUnweighted: v })} placeholder={gpaEx.unw} min={0} max={gpaEx.maxU} step={gpaEx.step} /></Field>
         <Field label="Weighted GPA"><NumberInput value={e.gpaWeighted} onChange={(v) => set({ gpaWeighted: v })} placeholder={gpaEx.w} min={0} max={gpaEx.maxW} step={gpaEx.step} /></Field>
       </div>
     </div>
@@ -492,15 +470,66 @@ const A_LEVEL_SUBJECT_OPTIONS = (query: string): ComboOption[] => {
   return A_LEVEL_SUBJECTS.filter((sub) => !q || sub.toLowerCase().includes(q)).map((sub) => ({ value: sub, label: sub }));
 };
 
+const EXAM_BLURB: Record<ExamType, string> = {
+  "AP": "US Advanced Placement — scored 1–5.",
+  "IB": "International Baccalaureate — subjects 1–7, plus TOK / EE / CAS core.",
+  "A-Level": "GCE / Cambridge A-Levels — graded A*–E.",
+};
+
+/** Collapsible panel for one exam system. The header stays readable when
+ *  collapsed (title + a live summary of what's inside). */
+function ExamPanel({ title, summary, open, onToggle, children }: {
+  title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode;
+}) {
+  return (
+    <div className={s.examPanel} data-open={open}>
+      <button type="button" className={s.examPanelHead} onClick={onToggle} aria-expanded={open}>
+        <span className={s.examPanelTitle}>{title}</span>
+        <span className={s.examPanelSummary}>{summary}</span>
+        <span className={s.examChevron} data-open={open}><Icon name="arrow" size={15} /></span>
+      </button>
+      {open && <div className={s.examPanelBody}>{children}</div>}
+    </div>
+  );
+}
+
 function StepTesting({ profile, setProfile }: StepProps) {
   const t = profile.testing;
   const highlight = !!profile.meta.resumeApplied;
   const set = (patch: Partial<typeof t>) => setProfile((p) => ({ ...p, testing: { ...p.testing, ...patch } }));
 
+  // Which system panels are expanded. UI-only — a system's data always persists
+  // in the profile even when its chip is unselected or its panel is collapsed.
+  const [expanded, setExpanded] = useState<Record<ExamType, boolean>>({ "AP": true, "IB": true, "A-Level": true });
+  const togglePanel = (id: ExamType) => setExpanded((e) => ({ ...e, [id]: !e[id] }));
+  function toggleExamType(id: ExamType) {
+    setProfile((p) => {
+      const has = p.testing.examTypes.includes(id);
+      const examTypes = has ? p.testing.examTypes.filter((x) => x !== id) : [...p.testing.examTypes, id];
+      return { ...p, testing: { ...p.testing, examTypes } };
+    });
+    setExpanded((e) => ({ ...e, [id]: true }));
+  }
+
   const hasAnyTest =
     t.sat != null || t.act != null ||
     t.ap.some((a) => a.subject) || t.ib.some((a) => a.subject) || t.aLevel.some((a) => a.subject);
   const testingInvalid = highlight && !t.noTestsYet && !hasAnyTest;
+
+  const apCount = t.ap.filter((a) => a.subject).length;
+  const ibCount = t.ib.filter((a) => a.subject).length;
+  const alCount = t.aLevel.filter((a) => a.subject).length;
+  const ibCoreCount = [t.ibCore.tok.status, t.ibCore.ee.status, t.ibCore.cas.status].filter(Boolean).length;
+  function summaryFor(id: ExamType): string {
+    if (id === "AP") return apCount ? `${apCount} subject${apCount === 1 ? "" : "s"}` : "None added yet";
+    if (id === "IB") {
+      const parts: string[] = [];
+      if (ibCount) parts.push(`${ibCount} subject${ibCount === 1 ? "" : "s"}`);
+      if (ibCoreCount) parts.push(`core ${ibCoreCount}/3`);
+      return parts.length ? parts.join(" · ") : "None added yet";
+    }
+    return alCount ? `${alCount} subject${alCount === 1 ? "" : "s"}` : "None added yet";
+  }
 
   /* ---- AP ---- */
   const chosenAp = t.ap.map((a) => a.subject).filter(Boolean);
@@ -573,25 +602,35 @@ function StepTesting({ profile, setProfile }: StepProps) {
           </div>
 
           <div className={s.subhead}>Subject exams</div>
-          <p className="field-hint" style={{ marginBottom: "0.7rem" }}>Choose the exam system you take. You can enter AP, IB, or A-Level subjects.</p>
-          <div className={s.examTabs} role="tablist" aria-label="Exam system">
-            {EXAM_TYPES.map((ex) => (
-              <button
-                key={ex.id}
-                type="button"
-                role="tab"
-                className={s.examTab}
-                data-active={t.examType === ex.id}
-                aria-selected={t.examType === ex.id}
-                onClick={() => set({ examType: ex.id })}
-              >
-                {ex.label}
-              </button>
-            ))}
+          <p className="field-hint" style={{ marginBottom: "0.7rem" }}>Select every exam system you take — AP, IB, and/or A-Level. Pick more than one if you mix systems. Anything you enter stays saved even if you unselect a system later.</p>
+          <div className={s.examPick} role="group" aria-label="Exam systems">
+            {EXAM_TYPES.map((ex) => {
+              const selected = t.examTypes.includes(ex.id);
+              return (
+                <button
+                  key={ex.id}
+                  type="button"
+                  className={s.examChip}
+                  data-selected={selected}
+                  aria-pressed={selected}
+                  onClick={() => toggleExamType(ex.id)}
+                >
+                  <span className={s.examChipMark}>{selected && <Icon name="check" size={12} />}</span>
+                  <span className={s.examChipText}>
+                    <span className={s.examChipLabel}>{ex.label}</span>
+                    <span className={s.examChipBlurb}>{EXAM_BLURB[ex.id]}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          {t.examType === "AP" && (
-            <>
+          {t.examTypes.length === 0 && (
+            <p className="field-needs" style={{ marginTop: "0.9rem" }}>Select at least one exam system above — or check &ldquo;I haven&apos;t taken any standardized tests yet&rdquo;.</p>
+          )}
+
+          {t.examTypes.includes("AP") && (
+            <ExamPanel title="AP Subject Testing" summary={summaryFor("AP")} open={expanded["AP"]} onToggle={() => togglePanel("AP")}>
               <div className={s.apList}>
                 {t.ap.map((a, i) => {
                   const taken = chosenAp.filter((sub) => sub !== a.subject);
@@ -621,11 +660,11 @@ function StepTesting({ profile, setProfile }: StepProps) {
                 })}
               </div>
               <p className="field-hint">Type any shorthand — “lang”, “ap gov”, “calc bc” all work. A new row appears automatically; you can&apos;t pick the same subject twice.</p>
-            </>
+            </ExamPanel>
           )}
 
-          {t.examType === "IB" && (
-            <>
+          {t.examTypes.includes("IB") && (
+            <ExamPanel title="IB Subject Testing" summary={summaryFor("IB")} open={expanded["IB"]} onToggle={() => togglePanel("IB")}>
               <div className={s.ibCore}>
                 <div className={s.subhead} style={{ margin: "0 0 0.8rem" }}>IB Core</div>
                 <div className={s.ibCoreRow}>
@@ -697,11 +736,11 @@ function StepTesting({ profile, setProfile }: StepProps) {
                 })}
               </div>
               <p className="field-hint">IB subjects are scored 1–7. A new row appears automatically as you add subjects.</p>
-            </>
+            </ExamPanel>
           )}
 
-          {t.examType === "A-Level" && (
-            <>
+          {t.examTypes.includes("A-Level") && (
+            <ExamPanel title="A-Level" summary={summaryFor("A-Level")} open={expanded["A-Level"]} onToggle={() => togglePanel("A-Level")}>
               <div className={s.apList}>
                 {t.aLevel.map((a, i) => (
                   <div key={i} className={s.aLevelRow}>
@@ -743,7 +782,7 @@ function StepTesting({ profile, setProfile }: StepProps) {
                 ))}
               </div>
               <p className="field-hint">A-Levels are graded A*–E. Add each subject with its level and exam board. A new row appears automatically.</p>
-            </>
+            </ExamPanel>
           )}
         </>
       )}
@@ -978,7 +1017,7 @@ function StepActivities({ profile, setProfile }: StepProps) {
 }
 
 /* ---------------- Step 7: Review & Generate ---------------- */
-function StepReview({ profile, setProfile, onEdit }: StepProps & { onEdit: (n: number) => void }) {
+function StepReview({ profile, onEdit }: StepProps & { onEdit: (n: number) => void }) {
   const pct = completionPct(profile);
   const acts = profile.activities.filter((a) => a.type || a.organization);
   const awards = profile.awards.filter((a) => a.title);
@@ -999,13 +1038,9 @@ function StepReview({ profile, setProfile, onEdit }: StepProps & { onEdit: (n: n
           <Icon name="shield" size={18} />
           <strong>Before we generate your evaluation</strong>
         </div>
-        <p className="muted" style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+        <p className="muted" style={{ fontSize: "0.85rem", marginBottom: 0 }}>
           Your profile stays on your device. We send it to the evaluation model to produce your committee-style report, then store the result locally. Nothing is shared with third parties.
         </p>
-        <label className={s.checkRow}>
-          <input type="checkbox" checked={profile.basic.incomeOptIn} onChange={(e) => setProfile((p) => ({ ...p, basic: { ...p.basic, incomeOptIn: e.target.checked } }))} />
-          Include financial context in aid &amp; scholarship matching
-        </label>
       </div>
 
       {pct < 50 && (
@@ -1019,16 +1054,20 @@ function StepReview({ profile, setProfile, onEdit }: StepProps & { onEdit: (n: n
 }
 
 function testingSummary(t: StudentProfile["testing"]): string {
-  if (t.examType === "IB") {
+  const parts: string[] = [];
+  if (t.examTypes.includes("AP")) {
+    const n = t.ap.filter((a) => a.subject).length;
+    if (n) parts.push(`${n} AP`);
+  }
+  if (t.examTypes.includes("IB")) {
     const n = t.ib.filter((a) => a.subject).length;
-    return `${n} IB subject${n === 1 ? "" : "s"}`;
+    if (n) parts.push(`${n} IB`);
   }
-  if (t.examType === "A-Level") {
+  if (t.examTypes.includes("A-Level")) {
     const n = t.aLevel.filter((a) => a.subject).length;
-    return `${n} A-Level${n === 1 ? "" : "s"}`;
+    if (n) parts.push(`${n} A-Level`);
   }
-  const n = t.ap.filter((a) => a.subject).length;
-  return `${n} AP`;
+  return parts.length ? parts.join(" · ") : "No subjects yet";
 }
 
 function ReviewItem({ step, title, lines, onEdit }: { step: number; title: string; lines: string[]; onEdit: (n: number) => void }) {

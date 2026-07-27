@@ -52,7 +52,49 @@ export const INCOME_BANDS = [
   "$75,000 - $99,999", "$100,000 - $149,999", "$150,000 - $200,000", "$200,000 and above", "Unknown",
 ];
 export const RECOGNITION_LEVELS = ["School", "Regional", "State", "National", "International"];
-export const GPA_SCALES = ["4.0", "5.0", "100", "Other"];
+
+// Comprehensive set of GPA scales used across US + international systems.
+export const GPA_SCALES = [
+  "4.0",
+  "4.3",
+  "4.33",
+  "4.5",
+  "5.0",
+  "6.0",
+  "7.0",
+  "9.0",
+  "10.0",
+  "12.0",
+  "20 (France)",
+  "100 (percentage)",
+  "Letter grade (A–F)",
+  "Other / custom",
+];
+
+/**
+ * Per-scale metadata that drives placeholder examples and the numeric input
+ * bounds/step for the unweighted & weighted GPA fields. Derived from the scale
+ * so every scale in GPA_SCALES gets sensible hints automatically.
+ */
+export function gpaScaleMeta(scale: string): { unw: string; w: string; maxU?: number; maxW?: number; step: number } {
+  if (scale.startsWith("100")) return { unw: "e.g. 95", w: "e.g. 98", maxU: 100, maxW: 110, step: 0.1 };
+  if (scale.startsWith("Letter") || scale.startsWith("Other") || !scale) {
+    return { unw: "Your GPA", w: "Weighted GPA", step: 0.01 };
+  }
+  const base = parseFloat(scale);
+  if (!Number.isFinite(base)) return { unw: "Your GPA", w: "Weighted GPA", step: 0.01 };
+  const big = base >= 15; // e.g. 20-point (France) / 100
+  const fmt = (n: number) => (big ? String(Math.round(n)) : (Math.round(n * 100) / 100).toFixed(2));
+  const unwStrong = base * 0.965;
+  const wStrong = Math.min(base + 2, base * 1.15);
+  return {
+    unw: `e.g. ${fmt(unwStrong)}`,
+    w: `e.g. ${fmt(wStrong)}`,
+    maxU: big ? base : base + 0.5,
+    maxW: big ? base : base + 2,
+    step: big ? 0.1 : 0.01,
+  };
+}
 
 export const US_STATES = [
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut",
@@ -173,7 +215,7 @@ export function emptyProfile(): StudentProfile {
     basic: { firstName: "", middleName: "", lastName: "", gender: "", schoolYear: "", gradYear: null, firstGen: "", familyIncomeBand: "", incomeOptIn: false },
     education: { school: "", country: "United States", state: "", city: "", classSize: null, classSizeUnknown: false, classRank: null, rankUnknown: false, gpaScale: "4.0", gpaUnweighted: null, gpaWeighted: null },
     testing: {
-      examType: "AP",
+      examTypes: ["AP"],
       sat: null,
       act: null,
       ap: [{ subject: "", score: null }],
@@ -198,8 +240,21 @@ export function normalizeProfile(raw: unknown): StudentProfile {
   const base = emptyProfile();
   if (!raw || typeof raw !== "object") return base;
   const r = raw as Partial<StudentProfile>;
-  const t = (r.testing || {}) as Partial<StudentProfile["testing"]>;
+  const t = (r.testing || {}) as Partial<StudentProfile["testing"]> & { examType?: string };
   const core = (t.ibCore || {}) as Partial<StudentProfile["testing"]["ibCore"]>;
+
+  // Migrate legacy single `examType` string -> `examTypes` array.
+  let examTypes: StudentProfile["testing"]["examTypes"];
+  if (Array.isArray(t.examTypes) && t.examTypes.length) {
+    examTypes = t.examTypes.filter((x): x is StudentProfile["testing"]["examTypes"][number] =>
+      x === "AP" || x === "IB" || x === "A-Level");
+  } else if (t.examType === "IB" || t.examType === "A-Level" || t.examType === "AP") {
+    examTypes = [t.examType];
+  } else {
+    examTypes = [...base.testing.examTypes];
+  }
+  if (!examTypes.length) examTypes = [...base.testing.examTypes];
+
   return {
     ...base,
     ...r,
@@ -210,7 +265,7 @@ export function normalizeProfile(raw: unknown): StudentProfile {
     testing: {
       ...base.testing,
       ...t,
-      examType: t.examType ?? base.testing.examType,
+      examTypes,
       ap: Array.isArray(t.ap) && t.ap.length ? t.ap : base.testing.ap,
       ib: Array.isArray(t.ib) && t.ib.length ? t.ib : base.testing.ib,
       aLevel: Array.isArray(t.aLevel) && t.aLevel.length ? t.aLevel : base.testing.aLevel,

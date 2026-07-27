@@ -24,7 +24,7 @@ export async function POST(req: Request) {
         system: EVAL_SYSTEM,
         user: buildEvalUser(profile),
         temperature: 0.4,
-        maxTokens: 4096,
+        maxTokens: 8000,
       });
       const report = validate(raw, profile);
       if (report) return NextResponse.json({ report, source: "openai" });

@@ -11,12 +11,13 @@ import { staggerParent, riseItem } from "@/lib/motion";
 import p from "@/components/planning.module.css";
 
 export default function Majors() {
-  const { profile, hydrated } = useStore();
+  const { profile, assessment, hydrated } = useStore();
   if (!hydrated) return <div className="container" style={{ minHeight: "40vh" }} />;
 
   const interests = Array.from(new Set([...profile.intake.interests, ...profile.preference.interests]));
+  const recMajors = assessment?.recommendations?.majors ?? [];
 
-  if (interests.length === 0) {
+  if (interests.length === 0 && recMajors.length === 0) {
     return (
       <div className="container">
         <PageHeader eyebrow="College Planning · Majors" title="Best-fit Majors" />
@@ -34,6 +35,39 @@ export default function Majors() {
   return (
     <div className="container">
       <PageHeader eyebrow="College Planning · Majors" title="Best-fit Majors" lead="Ranked from your interests. Each fit score reflects how well a major aligns with what you've told us." />
+
+      {recMajors.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          className="surface"
+          style={{ padding: "1.5rem 1.6rem", marginBottom: "2rem", borderLeft: "3px solid var(--marigold)" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", marginBottom: "0.3rem" }}>
+            <Icon name="sparkle" size={18} />
+            <strong style={{ color: "var(--ink)" }}>From your Admissions Evaluation</strong>
+          </div>
+          <p className="muted" style={{ fontSize: "0.88rem", margin: "0 0 1.1rem" }}>
+            {assessment?.recommendations?.summary || "Your two best-fit majors, chosen from your interests, activities, and trajectory."}
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1rem" }}>
+            {recMajors.map((m) => (
+              <div key={m.name} className={p.card} style={{ padding: "1.1rem 1.2rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.6rem", marginBottom: "0.5rem" }}>
+                  <span style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem", color: "var(--ink)" }}>{m.name}</span>
+                  <span className="tag-mono" style={{ color: "var(--ivy-bright)", whiteSpace: "nowrap" }}>{m.fit}% fit</span>
+                </div>
+                <p className="muted" style={{ fontSize: "0.86rem", margin: 0 }}>{m.why}</p>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+      )}
+
+      {ranked.length > 0 && (
+        <span className="eyebrow" style={{ display: "block", marginBottom: "1rem" }}>Explore more by interest</span>
+      )}
       <motion.div variants={staggerParent} initial="hidden" animate="show" className={p.cardGrid}>
         {ranked.map((r) => (
           <motion.div key={r.major.name} variants={riseItem} className={`${p.card} ${p.cardHover}`}>

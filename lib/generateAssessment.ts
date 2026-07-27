@@ -75,17 +75,21 @@ export function generateAssessment(p: StudentProfile): AssessmentReport {
   if (sat) comparison.push({ metric: "SAT Score", student: String(sat), schoolAvg: "1240", delta: sat >= 1400 ? "Significantly Above" : sat >= 1250 ? "Above" : "At/Below" });
 
   // --- extracurricular items (tiers) ---
-  const items = acts.slice(0, 8).map((a) => {
-    const lead = /founder|president|captain|director/i.test(a.position);
-    const sustained = (a.grades.length >= 3) || (a.weeksPerYear ?? 0) >= 30;
-    const tier = lead && sustained ? 1 : lead || sustained ? 2 : a.position ? 3 : 4;
-    return {
-      tier,
-      category: a.type || "Activity",
-      title: [a.position, a.organization].filter(Boolean).join(" — ") || a.description.slice(0, 48) || "Activity",
-      rationale: tier === 1 ? "Sustained leadership with real scope — a standout." : tier === 2 ? "Leadership or longevity elevates this entry." : tier === 3 ? "A defined role; deepen it for more impact." : "Participation — adds context but limited differentiation.",
-    };
-  });
+  // Include EVERY activity, ranked by impact (tier), up to the top 10.
+  const items = acts
+    .map((a) => {
+      const lead = /founder|president|captain|director/i.test(a.position);
+      const sustained = (a.grades.length >= 3) || (a.weeksPerYear ?? 0) >= 30;
+      const tier = lead && sustained ? 1 : lead || sustained ? 2 : a.position ? 3 : 4;
+      return {
+        tier,
+        category: a.type || "Activity",
+        title: [a.position, a.organization].filter(Boolean).join(" — ") || a.description.slice(0, 48) || "Activity",
+        rationale: tier === 1 ? "Sustained leadership with real scope — a standout." : tier === 2 ? "Leadership or longevity elevates this entry." : tier === 3 ? "A defined role; deepen it for more impact." : "Participation — adds context but limited differentiation.",
+      };
+    })
+    .sort((x, y) => x.tier - y.tier)
+    .slice(0, 10);
 
   const t1 = items.filter((i) => i.tier === 1).length;
   const overallEC = [
@@ -125,11 +129,16 @@ export function generateAssessment(p: StudentProfile): AssessmentReport {
     },
     awards: {
       rating: awardsScore >= 4.3 ? "Nationally Distinguished" : awardsScore >= 3.3 ? "Strong, Multi-Domain" : "Building",
-      groups: [
-        { level: "National", count: nat, items: awards.filter((a) => /national|international/i.test(a.recognition)).map((a) => a.title) },
-        { level: "State", count: stateA, items: awards.filter((a) => /state/i.test(a.recognition)).map((a) => a.title) },
-        { level: "Regional / School", count: awards.length - nat - stateA, items: awards.filter((a) => !/national|international|state/i.test(a.recognition)).map((a) => a.title) },
-      ].filter((g) => g.count > 0),
+      groups: (() => {
+        // Show the top 10 awards by selectivity; counts stay true to the full set.
+        const rank = (r: string) => (/international/i.test(r) ? 5 : /national/i.test(r) ? 4 : /state/i.test(r) ? 3 : /region/i.test(r) ? 2 : 1);
+        const top = [...awards].sort((a, b) => rank(b.recognition) - rank(a.recognition)).slice(0, 10);
+        return [
+          { level: "National / International", count: nat, items: top.filter((a) => /national|international/i.test(a.recognition)).map((a) => a.title) },
+          { level: "State", count: stateA, items: top.filter((a) => /state/i.test(a.recognition)).map((a) => a.title) },
+          { level: "Regional / School", count: awards.length - nat - stateA, items: top.filter((a) => !/national|international|state/i.test(a.recognition)).map((a) => a.title) },
+        ].filter((g) => g.count > 0);
+      })(),
       summary: awards.length ? "Recognition across multiple domains strengthens credibility — breadth of external validation is rare." : "No awards listed yet — add honors to demonstrate external validation.",
     },
     narrative: {

@@ -76,7 +76,9 @@ export interface ALevelEntry {
 }
 
 export interface Testing {
-  examType: ExamType;
+  /** Which exam systems the student takes. Multi-select; data for a system is
+   *  retained even if it's later deselected. */
+  examTypes: ExamType[];
   sat: number | null;
   act: number | null;
   ap: APEntry[];

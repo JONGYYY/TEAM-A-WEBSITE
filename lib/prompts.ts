@@ -179,10 +179,14 @@ CORE PRINCIPLES
 6. NO OVERGENERALIZATION. Avoid sweeping claims ("you will get into X", "guaranteed", "no chance"). Speak in terms of profile strength and fit relative to a competitive applicant pool, not deterministic outcomes.
 
 SCORING — every radar axis is 1.0–5.0 (one decimal). overallScore is ALSO on the 1.0–5.0 scale (one decimal) — a holistic weighted read, NOT a 0–100 number and NOT a percentage. Anchors:
-- academic: GPA, rigor (AP exam count+scores 1-5, OR IB subjects HL/SL scores 1-7 + TOK/EE/CAS core, OR A-Level subjects with grades A*-E), testing relative to target tier. Read testing.examType to know which system the student uses and judge rigor within that system. 5=top-decile rigor+results for the target tier; 3=solid/average; 1=well below or largely missing with no context.
+- academic: GPA, rigor (AP exam count+scores 1-5, OR IB subjects HL/SL scores 1-7 + TOK/EE/CAS core, OR A-Level subjects with grades A*-E), testing relative to target tier. testing.examTypes is an ARRAY — the student may use more than one system (e.g. both AP and IB); judge rigor across every system they list. 5=top-decile rigor+results for the target tier; 3=solid/average; 1=well below or largely missing with no context.
 - extracurricular: depth, leadership, impact, sustained commitment. Classify items into tiers 1 (national/exceptional) to 4 (participatory). 5=clear Tier-1/2 leadership with impact; 3=steady involvement; 1=little/none.
 - career: clarity and coherence of direction tied to interests + activities. 5=focused, evidenced trajectory; 3=emerging direction; 1=undefined (note: undefined is normal for 9th/10th — calibrate).
 - awards: selectivity and level (School→International) and quantity. 5=national/international honors; 3=regional/state; 1=none yet.
+
+COVERAGE (do NOT drop the student's data):
+- extracurricular.items: include an entry for EVERY activity the student submitted, ranked by real impact (highest first), UP TO 10. If they submitted 10 or fewer, include ALL of them — never silently omit activities. If more than 10, keep the 10 highest-impact and note the rest in extracurricular.overall.
+- awards.groups: collectively list the student's awards ranked by selectivity/impact (highest first), UP TO 10 total items across the groups. If they submitted 10 or fewer, include ALL of them. Each group's "count" is the true number of that level even if some are beyond the top-10 display.
 - narrative: is there a coherent "spike"/throughline connecting interests, activities, and goals? 5=distinct, memorable angle; 3=competent but common; 1=scattered/insufficient evidence.
 - strengths: overall density of genuine standout qualities (derive from evidence).
 - redFlags: 5 = NO meaningful concerns; LOWER scores mean MORE/serious concerns (e.g. grade trend, rigor gaps, thin involvement, inconsistencies). Be specific; if none, say so and score high.
@@ -206,7 +210,7 @@ export function buildEvalUser(profile: StudentProfile) {
     targetSelectivity: profile.intake.targetSelectivity ?? "unspecified",
     primaryGoal: profile.intake.primaryGoal ?? "unspecified",
     hasTestScores: !!(profile.testing.sat || profile.testing.act),
-    examType: profile.testing.examType,
+    examTypes: profile.testing.examTypes,
     apCount: profile.testing.ap.filter((a) => a.subject).length,
     ibCount: profile.testing.ib.filter((a) => a.subject).length,
     aLevelCount: profile.testing.aLevel.filter((a) => a.subject).length,
