@@ -1,4 +1,4 @@
-import type { StudentProfile } from "./types";
+import type { StudentProfile, TestType } from "./types";
 
 export const INTERESTS = [
   "Arts", "Humanities", "Political Science", "Business", "Economics", "Accounting",
@@ -171,6 +171,16 @@ export const EXAM_TYPES: { id: "AP" | "IB" | "A-Level"; label: string }[] = [
   { id: "A-Level", label: "A-Level" },
 ];
 
+/** All selectable tests driving the Testing-step picker. "score" tests (SAT/ACT)
+ *  render as a single number; "subject" tests (AP/IB/A-Level) render subject lists. */
+export const TEST_TYPES: { id: TestType; label: string; blurb: string; kind: "score" | "subject" }[] = [
+  { id: "SAT", label: "SAT", blurb: "Total score, 400–1600.", kind: "score" },
+  { id: "ACT", label: "ACT", blurb: "Composite, 1–36.", kind: "score" },
+  { id: "AP", label: "AP", blurb: "US Advanced Placement — 1–5.", kind: "subject" },
+  { id: "IB", label: "IB", blurb: "Int'l Baccalaureate — 1–7 + core.", kind: "subject" },
+  { id: "A-Level", label: "A-Level", blurb: "GCE / Cambridge — A*–E.", kind: "subject" },
+];
+
 // IB Diploma Programme subjects, grouped by the six subject groups + core.
 export const IB_SUBJECTS = [
   // Group 1: Studies in Language and Literature
@@ -215,7 +225,7 @@ export function emptyProfile(): StudentProfile {
     basic: { firstName: "", middleName: "", lastName: "", gender: "", schoolYear: "", gradYear: null, firstGen: "", familyIncomeBand: "", incomeOptIn: false },
     education: { school: "", country: "United States", state: "", city: "", classSize: null, classSizeUnknown: false, classRank: null, rankUnknown: false, gpaScale: "4.0", gpaUnweighted: null, gpaWeighted: null },
     testing: {
-      examTypes: ["AP"],
+      tests: [],
       sat: null,
       act: null,
       ap: [{ subject: "", score: null }],
@@ -240,20 +250,26 @@ export function normalizeProfile(raw: unknown): StudentProfile {
   const base = emptyProfile();
   if (!raw || typeof raw !== "object") return base;
   const r = raw as Partial<StudentProfile>;
-  const t = (r.testing || {}) as Partial<StudentProfile["testing"]> & { examType?: string };
+  const t = (r.testing || {}) as Partial<StudentProfile["testing"]> & { examType?: string; examTypes?: string[] };
   const core = (t.ibCore || {}) as Partial<StudentProfile["testing"]["ibCore"]>;
 
-  // Migrate legacy single `examType` string -> `examTypes` array.
-  let examTypes: StudentProfile["testing"]["examTypes"];
-  if (Array.isArray(t.examTypes) && t.examTypes.length) {
-    examTypes = t.examTypes.filter((x): x is StudentProfile["testing"]["examTypes"][number] =>
-      x === "AP" || x === "IB" || x === "A-Level");
-  } else if (t.examType === "IB" || t.examType === "A-Level" || t.examType === "AP") {
-    examTypes = [t.examType];
-  } else {
-    examTypes = [...base.testing.examTypes];
+  // Migrate to the unified `tests` array. Sources, in order:
+  //  - subject systems from `tests`, legacy `examTypes[]`, or legacy `examType`
+  //  - SAT/ACT inferred from present scores (older schemas had no selection)
+  const isTest = (x: unknown): x is TestType =>
+    x === "SAT" || x === "ACT" || x === "AP" || x === "IB" || x === "A-Level";
+  const tests: TestType[] = [];
+  const push = (x: TestType) => { if (!tests.includes(x)) tests.push(x); };
+
+  if (Array.isArray(t.tests)) {
+    t.tests.filter(isTest).forEach(push);
+  } else if (Array.isArray(t.examTypes)) {
+    t.examTypes.filter(isTest).forEach(push);
+  } else if (isTest(t.examType)) {
+    push(t.examType);
   }
-  if (!examTypes.length) examTypes = [...base.testing.examTypes];
+  if (t.sat != null) push("SAT");
+  if (t.act != null) push("ACT");
 
   return {
     ...base,
@@ -265,7 +281,7 @@ export function normalizeProfile(raw: unknown): StudentProfile {
     testing: {
       ...base.testing,
       ...t,
-      examTypes,
+      tests,
       ap: Array.isArray(t.ap) && t.ap.length ? t.ap : base.testing.ap,
       ib: Array.isArray(t.ib) && t.ib.length ? t.ib : base.testing.ib,
       aLevel: Array.isArray(t.aLevel) && t.aLevel.length ? t.aLevel : base.testing.aLevel,

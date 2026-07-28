@@ -50,6 +50,10 @@ export interface APEntry {
 
 export type ExamType = "AP" | "IB" | "A-Level";
 
+/** Every selectable test in the Testing step. SAT/ACT are scalar scores;
+ *  AP/IB/A-Level (ExamType) are subject-list systems. */
+export type TestType = "SAT" | "ACT" | ExamType;
+
 /** One IB Diploma subject (6 subjects across HL/SL, each scored 1-7). */
 export interface IBEntry {
   subject: string;
@@ -76,9 +80,9 @@ export interface ALevelEntry {
 }
 
 export interface Testing {
-  /** Which exam systems the student takes. Multi-select; data for a system is
-   *  retained even if it's later deselected. */
-  examTypes: ExamType[];
+  /** Which tests the student reports (SAT/ACT/AP/IB/A-Level). Multi-select;
+   *  a test's data is retained even if it's later deselected. */
+  tests: TestType[];
   sat: number | null;
   act: number | null;
   ap: APEntry[];

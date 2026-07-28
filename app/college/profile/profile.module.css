@@ -181,12 +181,12 @@
 }
 .removeBtn:hover { color: var(--clay); border-color: var(--clay); }
 
-/* Exam-system multi-select (AP / IB / A-Level) — selectable cards */
+/* Test multi-select (SAT / ACT / AP / IB / A-Level) — selectable cards */
 .examPick {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 0.7rem;
-  margin-bottom: 1.2rem;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1rem;
 }
 .examChip {
   display: flex;
@@ -228,45 +228,102 @@
 .examChipLabel { font-weight: 600; color: var(--ink); font-size: 0.92rem; }
 .examChipBlurb { font-size: 0.75rem; color: var(--ink-faint); line-height: 1.3; }
 
-/* Collapsible per-system panel (accordion) */
-.examPanel {
-  border: 1px solid var(--hairline);
+/* SAT / ACT — compact inline score cards */
+.scoreRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+.scoreCard {
+  flex: 1 1 200px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--r-md);
   background: var(--paper);
-  margin-bottom: 0.8rem;
-  overflow: hidden;
 }
-.examPanel[data-open="true"] { border-color: var(--hairline-strong); }
-.examPanelHead {
+.scoreCard[data-invalid="true"] {
+  border-color: var(--danger, #c0392b);
+  background: color-mix(in srgb, var(--danger, #c0392b) 6%, var(--paper));
+}
+.scoreLabel {
   display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  width: 100%;
-  padding: 0.85rem 1.1rem;
-  background: var(--paper-raised);
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--font-ui);
-  transition: background var(--dur-fast) var(--ease-out);
+  align-items: baseline;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.95rem;
 }
-.examPanelHead:hover { background: color-mix(in srgb, var(--marigold) 8%, var(--paper-raised)); }
-.examPanelTitle { font-weight: 600; color: var(--ink); font-size: 0.95rem; }
-.examPanelSummary {
-  flex: 1;
-  font-size: 0.8rem;
+.scoreHint {
+  font-weight: 400;
+  font-size: 0.75rem;
   color: var(--ink-faint);
   font-family: var(--font-mono);
 }
-.examChevron {
-  display: inline-flex;
-  color: var(--ink-faint);
-  transition: transform var(--dur-base) var(--ease-out);
+
+/* AP / IB / A-Level — single tabbed subject panel */
+.subjectPanel {
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  overflow: hidden;
 }
-.examChevron[data-open="true"] { transform: rotate(90deg); }
-.examPanelBody {
+.subjectTabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.4rem 0.4rem 0;
+  background: var(--paper-raised);
+  border-bottom: 1px solid var(--hairline);
+  overflow-x: auto;
+}
+.subjectTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.95rem;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  background: transparent;
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.subjectTab:hover { color: var(--ink); }
+.subjectTab[data-active="true"] {
+  color: var(--ink);
+  background: var(--paper);
+  border-color: var(--hairline);
+  box-shadow: 0 -2px 0 var(--ivy) inset;
+}
+.subjectTabBadge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--ivy) 16%, var(--paper-sunk));
+  color: var(--ivy);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.subjectTab[data-active="true"] .subjectTabBadge {
+  background: var(--ivy);
+  color: #fff;
+}
+.subjectTabBody {
   padding: 1.1rem;
-  border-top: 1px solid var(--hairline);
 }
 
 /* IB core components block */

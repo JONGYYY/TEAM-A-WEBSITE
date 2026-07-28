@@ -16,10 +16,10 @@ import {
   ACTIVITY_TYPES, INTERESTS, REGIONS, INSTITUTION_TYPES,
   SPECIAL_DESIGNATIONS, CAMPUS_CULTURE, SETTINGS, AID_IMPORTANCE, completionPct,
   NO_PREF, togglePref, searchStates,
-  EXAM_TYPES, IB_SUBJECTS, IB_LEVELS, IB_STATUSES, IB_CORE_GRADES, IB_CORE_STATUSES, IB_CAS_STATUSES,
+  EXAM_TYPES, TEST_TYPES, IB_SUBJECTS, IB_LEVELS, IB_STATUSES, IB_CORE_GRADES, IB_CORE_STATUSES, IB_CAS_STATUSES,
   A_LEVEL_CATEGORIES, A_LEVEL_SUBJECTS, A_LEVEL_LEVELS, A_LEVEL_GRADES, A_LEVEL_STATUSES, EXAM_BOARDS,
 } from "@/lib/taxonomy";
-import type { StudentProfile, Award, Activity, APEntry, IBEntry, ALevelEntry, IBCore, ExamType } from "@/lib/types";
+import type { StudentProfile, Award, Activity, APEntry, IBEntry, ALevelEntry, IBCore, ExamType, TestType } from "@/lib/types";
 import s from "./profile.module.css";
 
 const STEPS = [
@@ -111,11 +111,14 @@ function mergeResumePartial(prev: StudentProfile, partial: ResumePartial): Stude
   const pt = partial.testing;
   if (pt) {
     const t = next.testing;
-    // If the résumé reveals a system, make sure it's selected (keep any the
+    // If the résumé reveals a test, make sure it's selected (keep any the
     // student already chose — this is additive, never destructive).
-    if (pt.examType && !t.examTypes.includes(pt.examType)) t.examTypes = [...t.examTypes, pt.examType];
+    const selectTest = (id: TestType) => { if (!t.tests.includes(id)) t.tests = [...t.tests, id]; };
+    if (pt.examType) selectTest(pt.examType);
     if (t.sat == null && pt.sat != null) t.sat = pt.sat;
     if (t.act == null && pt.act != null) t.act = pt.act;
+    if (pt.sat != null) selectTest("SAT");
+    if (pt.act != null) selectTest("ACT");
     if (pt.sat != null || pt.act != null) t.noTestsYet = false;
     if (Array.isArray(pt.ap) && pt.ap.length && !t.ap.some((a) => a.subject)) {
       t.ap = [...pt.ap, emptyApRow()];
@@ -470,45 +473,23 @@ const A_LEVEL_SUBJECT_OPTIONS = (query: string): ComboOption[] => {
   return A_LEVEL_SUBJECTS.filter((sub) => !q || sub.toLowerCase().includes(q)).map((sub) => ({ value: sub, label: sub }));
 };
 
-const EXAM_BLURB: Record<ExamType, string> = {
-  "AP": "US Advanced Placement — scored 1–5.",
-  "IB": "International Baccalaureate — subjects 1–7, plus TOK / EE / CAS core.",
-  "A-Level": "GCE / Cambridge A-Levels — graded A*–E.",
-};
-
-/** Collapsible panel for one exam system. The header stays readable when
- *  collapsed (title + a live summary of what's inside). */
-function ExamPanel({ title, summary, open, onToggle, children }: {
-  title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode;
-}) {
-  return (
-    <div className={s.examPanel} data-open={open}>
-      <button type="button" className={s.examPanelHead} onClick={onToggle} aria-expanded={open}>
-        <span className={s.examPanelTitle}>{title}</span>
-        <span className={s.examPanelSummary}>{summary}</span>
-        <span className={s.examChevron} data-open={open}><Icon name="arrow" size={15} /></span>
-      </button>
-      {open && <div className={s.examPanelBody}>{children}</div>}
-    </div>
-  );
-}
-
 function StepTesting({ profile, setProfile }: StepProps) {
   const t = profile.testing;
   const highlight = !!profile.meta.resumeApplied;
   const set = (patch: Partial<typeof t>) => setProfile((p) => ({ ...p, testing: { ...p.testing, ...patch } }));
 
-  // Which system panels are expanded. UI-only — a system's data always persists
-  // in the profile even when its chip is unselected or its panel is collapsed.
-  const [expanded, setExpanded] = useState<Record<ExamType, boolean>>({ "AP": true, "IB": true, "A-Level": true });
-  const togglePanel = (id: ExamType) => setExpanded((e) => ({ ...e, [id]: !e[id] }));
-  function toggleExamType(id: ExamType) {
+  // Which subject-exam tab is showing. UI-only; every test's data persists in
+  // the profile even when a test is unselected.
+  const [activeTab, setActiveTab] = useState<ExamType>("AP");
+  const has = (id: TestType) => t.tests.includes(id);
+  function toggleTest(id: TestType) {
     setProfile((p) => {
-      const has = p.testing.examTypes.includes(id);
-      const examTypes = has ? p.testing.examTypes.filter((x) => x !== id) : [...p.testing.examTypes, id];
-      return { ...p, testing: { ...p.testing, examTypes } };
+      const on = p.testing.tests.includes(id);
+      const tests = on ? p.testing.tests.filter((x) => x !== id) : [...p.testing.tests, id];
+      // Picking any test clears the "no tests yet" flag; data is never wiped.
+      return { ...p, testing: { ...p.testing, tests, noTestsYet: tests.length ? false : p.testing.noTestsYet } };
     });
-    setExpanded((e) => ({ ...e, [id]: true }));
+    if (id === "AP" || id === "IB" || id === "A-Level") setActiveTab(id);
   }
 
   const hasAnyTest =
@@ -519,17 +500,11 @@ function StepTesting({ profile, setProfile }: StepProps) {
   const apCount = t.ap.filter((a) => a.subject).length;
   const ibCount = t.ib.filter((a) => a.subject).length;
   const alCount = t.aLevel.filter((a) => a.subject).length;
-  const ibCoreCount = [t.ibCore.tok.status, t.ibCore.ee.status, t.ibCore.cas.status].filter(Boolean).length;
-  function summaryFor(id: ExamType): string {
-    if (id === "AP") return apCount ? `${apCount} subject${apCount === 1 ? "" : "s"}` : "None added yet";
-    if (id === "IB") {
-      const parts: string[] = [];
-      if (ibCount) parts.push(`${ibCount} subject${ibCount === 1 ? "" : "s"}`);
-      if (ibCoreCount) parts.push(`core ${ibCoreCount}/3`);
-      return parts.length ? parts.join(" · ") : "None added yet";
-    }
-    return alCount ? `${alCount} subject${alCount === 1 ? "" : "s"}` : "None added yet";
-  }
+  const tabCount = (id: ExamType) => (id === "AP" ? apCount : id === "IB" ? ibCount : alCount);
+
+  // Selected subject systems, in canonical order, and the tab that's actually shown.
+  const subjectSelected = EXAM_TYPES.filter((ex) => t.tests.includes(ex.id)).map((ex) => ex.id);
+  const effectiveTab: ExamType | null = subjectSelected.includes(activeTab) ? activeTab : (subjectSelected[0] ?? null);
 
   /* ---- AP ---- */
   const chosenAp = t.ap.map((a) => a.subject).filter(Boolean);
@@ -586,7 +561,7 @@ function StepTesting({ profile, setProfile }: StepProps) {
 
   return (
     <div className={s.card}>
-      <label className={s.checkRow} style={{ marginBottom: "1rem" }}>
+      <label className={s.checkRow} style={{ marginBottom: "1.1rem" }}>
         <input type="checkbox" checked={t.noTestsYet} onChange={(e) => set({ noTestsYet: e.target.checked })} />
         I haven&apos;t taken any standardized tests yet
       </label>
@@ -596,193 +571,234 @@ function StepTesting({ profile, setProfile }: StepProps) {
 
       {!t.noTestsYet && (
         <>
-          <div className={s.grid2}>
-            <Field label="SAT score" hint="400–1600"><NumberInput value={t.sat} onChange={(v) => set({ sat: v })} placeholder="e.g. 1590" min={400} max={1600} /></Field>
-            <Field label="ACT score" hint="1–36"><NumberInput value={t.act} onChange={(v) => set({ act: v })} placeholder="e.g. 35" min={1} max={36} /></Field>
-          </div>
-
-          <div className={s.subhead}>Subject exams</div>
-          <p className="field-hint" style={{ marginBottom: "0.7rem" }}>Select every exam system you take — AP, IB, and/or A-Level. Pick more than one if you mix systems. Anything you enter stays saved even if you unselect a system later.</p>
-          <div className={s.examPick} role="group" aria-label="Exam systems">
-            {EXAM_TYPES.map((ex) => {
-              const selected = t.examTypes.includes(ex.id);
+          <div className={s.subhead} style={{ marginTop: 0 }}>Which tests do you have?</div>
+          <p className="field-hint" style={{ marginBottom: "0.8rem" }}>Select every test you&apos;ve taken or plan to report — you&apos;ll only see the ones you pick. Add as many as you like; anything you enter stays saved even if you unselect a test.</p>
+          <div className={s.examPick} role="group" aria-label="Tests">
+            {TEST_TYPES.map((tt) => {
+              const selected = has(tt.id);
               return (
                 <button
-                  key={ex.id}
+                  key={tt.id}
                   type="button"
                   className={s.examChip}
                   data-selected={selected}
                   aria-pressed={selected}
-                  onClick={() => toggleExamType(ex.id)}
+                  onClick={() => toggleTest(tt.id)}
                 >
                   <span className={s.examChipMark}>{selected && <Icon name="check" size={12} />}</span>
                   <span className={s.examChipText}>
-                    <span className={s.examChipLabel}>{ex.label}</span>
-                    <span className={s.examChipBlurb}>{EXAM_BLURB[ex.id]}</span>
+                    <span className={s.examChipLabel}>{tt.label}</span>
+                    <span className={s.examChipBlurb}>{tt.blurb}</span>
                   </span>
                 </button>
               );
             })}
           </div>
 
-          {t.examTypes.length === 0 && (
-            <p className="field-needs" style={{ marginTop: "0.9rem" }}>Select at least one exam system above — or check &ldquo;I haven&apos;t taken any standardized tests yet&rdquo;.</p>
+          {t.tests.length === 0 && (
+            <p className="field-hint" style={{ marginTop: "0.9rem" }}>Pick a test above to enter your scores — or check the box up top if you haven&apos;t tested yet.</p>
           )}
 
-          {t.examTypes.includes("AP") && (
-            <ExamPanel title="AP Subject Testing" summary={summaryFor("AP")} open={expanded["AP"]} onToggle={() => togglePanel("AP")}>
-              <div className={s.apList}>
-                {t.ap.map((a, i) => {
-                  const taken = chosenAp.filter((sub) => sub !== a.subject);
+          {/* SAT / ACT — compact score cards, only for selected tests */}
+          {(has("SAT") || has("ACT")) && (
+            <div className={s.scoreRow}>
+              {has("SAT") && (
+                <div className={s.scoreCard} data-invalid={highlight && t.sat == null ? "true" : undefined}>
+                  <span className={s.scoreLabel}>SAT<span className={s.scoreHint}>Total, 400–1600</span></span>
+                  <NumberInput value={t.sat} onChange={(v) => set({ sat: v })} placeholder="e.g. 1590" min={400} max={1600} />
+                </div>
+              )}
+              {has("ACT") && (
+                <div className={s.scoreCard} data-invalid={highlight && t.act == null ? "true" : undefined}>
+                  <span className={s.scoreLabel}>ACT<span className={s.scoreHint}>Composite, 1–36</span></span>
+                  <NumberInput value={t.act} onChange={(v) => set({ act: v })} placeholder="e.g. 35" min={1} max={36} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* AP / IB / A-Level — one tabbed panel; only the active list renders */}
+          {subjectSelected.length > 0 && effectiveTab && (
+            <div className={s.subjectPanel}>
+              <div className={s.subjectTabs} role="tablist" aria-label="Subject exams">
+                {subjectSelected.map((id) => {
+                  const active = id === effectiveTab;
+                  const c = tabCount(id);
                   return (
-                    <div key={i} className={s.apRow}>
-                      <Combobox
-                        value={a.subject}
-                        onChange={(v) => setAp(i, { subject: v })}
-                        placeholder="Pick or type (e.g. lang, gov, calc bc)"
-                        minChars={0}
-                        allowFreeText={false}
-                        preferUp
-                        emptyHint="No matching AP — try a shorter word"
-                        getOptions={(q) => AP_MATCH_OPTIONS(q, taken)}
-                      />
-                      <select className="select" style={{ maxWidth: 120 }} value={a.score ?? ""} onChange={(e) => setAp(i, { score: e.target.value ? Number(e.target.value) : null })}>
-                        <option value="">Score</option>
-                        {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                      {a.subject ? (
-                        <button type="button" className={s.removeBtn} onClick={() => removeAp(i)} aria-label={`Remove ${a.subject}`}>×</button>
-                      ) : (
-                        <span className={s.removeSpacer} aria-hidden />
-                      )}
-                    </div>
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      className={s.subjectTab}
+                      data-active={active}
+                      onClick={() => setActiveTab(id)}
+                    >
+                      {id}
+                      {c > 0 && <span className={s.subjectTabBadge}>{c}</span>}
+                    </button>
                   );
                 })}
               </div>
-              <p className="field-hint">Type any shorthand — “lang”, “ap gov”, “calc bc” all work. A new row appears automatically; you can&apos;t pick the same subject twice.</p>
-            </ExamPanel>
-          )}
 
-          {t.examTypes.includes("IB") && (
-            <ExamPanel title="IB Subject Testing" summary={summaryFor("IB")} open={expanded["IB"]} onToggle={() => togglePanel("IB")}>
-              <div className={s.ibCore}>
-                <div className={s.subhead} style={{ margin: "0 0 0.8rem" }}>IB Core</div>
-                <div className={s.ibCoreRow}>
-                  <span className={s.ibCoreLabel}>Theory of Knowledge (TOK)<span className={s.ibCoreHint}>Graded A–E; contributes bonus points</span></span>
-                  <select className="select" value={t.ibCore.tok.status} onChange={(e) => setCore("tok", { status: e.target.value })}>
-                    <option value="">Status</option>
-                    {IB_CORE_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                  <select className="select" value={t.ibCore.tok.grade} onChange={(e) => setCore("tok", { grade: e.target.value })}>
-                    <option value="">Grade</option>
-                    {IB_CORE_GRADES.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div className={s.ibCoreRow}>
-                  <span className={s.ibCoreLabel}>Extended Essay (EE)<span className={s.ibCoreHint}>Graded A–E; contributes bonus points</span></span>
-                  <select className="select" value={t.ibCore.ee.status} onChange={(e) => setCore("ee", { status: e.target.value })}>
-                    <option value="">Status</option>
-                    {IB_CORE_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                  <select className="select" value={t.ibCore.ee.grade} onChange={(e) => setCore("ee", { grade: e.target.value })}>
-                    <option value="">Grade</option>
-                    {IB_CORE_GRADES.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div className={s.ibCoreRow}>
-                  <span className={s.ibCoreLabel}>Creativity, Activity, Service (CAS)<span className={s.ibCoreHint}>Pass/complete — not graded</span></span>
-                  <select className="select" value={t.ibCore.cas.status} onChange={(e) => setCore("cas", { status: e.target.value })}>
-                    <option value="">Status</option>
-                    {IB_CAS_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                  <span aria-hidden />
-                </div>
-              </div>
-
-              <div className={s.subhead} style={{ marginTop: "1rem" }}>IB subjects</div>
-              <div className={s.apList}>
-                {t.ib.map((a, i) => {
-                  const taken = chosenIb.filter((sub) => sub !== a.subject);
-                  return (
-                    <div key={i} className={s.ibRow}>
-                      <Combobox
-                        value={a.subject}
-                        onChange={(v) => setIb(i, { subject: v })}
-                        placeholder="Search IB subject"
-                        minChars={0}
-                        preferUp
-                        emptyHint="No matching subject — you can type your own"
-                        getOptions={(q) => IB_SUBJECT_OPTIONS(q, taken)}
-                      />
-                      <select className="select" value={a.level} onChange={(e) => setIb(i, { level: e.target.value as IBEntry["level"] })}>
-                        <option value="">Level</option>
-                        {IB_LEVELS.map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                      <select className="select" value={a.score ?? ""} onChange={(e) => setIb(i, { score: e.target.value ? Number(e.target.value) : null })}>
-                        <option value="">Score</option>
-                        {[7, 6, 5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                      <select className="select" value={a.status} onChange={(e) => setIb(i, { status: e.target.value })}>
-                        <option value="">Status</option>
-                        {IB_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                      {a.subject ? (
-                        <button type="button" className={s.removeBtn} onClick={() => removeIb(i)} aria-label={`Remove ${a.subject}`}>×</button>
-                      ) : (
-                        <span className={s.removeSpacer} aria-hidden />
-                      )}
+              <div className={s.subjectTabBody}>
+                {effectiveTab === "AP" && (
+                  <>
+                    <div className={s.apList}>
+                      {t.ap.map((a, i) => {
+                        const taken = chosenAp.filter((sub) => sub !== a.subject);
+                        return (
+                          <div key={i} className={s.apRow}>
+                            <Combobox
+                              value={a.subject}
+                              onChange={(v) => setAp(i, { subject: v })}
+                              placeholder="Pick or type (e.g. lang, gov, calc bc)"
+                              minChars={0}
+                              allowFreeText={false}
+                              preferUp
+                              emptyHint="No matching AP — try a shorter word"
+                              getOptions={(q) => AP_MATCH_OPTIONS(q, taken)}
+                            />
+                            <select className="select" style={{ maxWidth: 120 }} value={a.score ?? ""} onChange={(e) => setAp(i, { score: e.target.value ? Number(e.target.value) : null })}>
+                              <option value="">Score</option>
+                              {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
+                            </select>
+                            {a.subject ? (
+                              <button type="button" className={s.removeBtn} onClick={() => removeAp(i)} aria-label={`Remove ${a.subject}`}>×</button>
+                            ) : (
+                              <span className={s.removeSpacer} aria-hidden />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-              <p className="field-hint">IB subjects are scored 1–7. A new row appears automatically as you add subjects.</p>
-            </ExamPanel>
-          )}
+                    <p className="field-hint">Type any shorthand — “lang”, “ap gov”, “calc bc” all work. A new row appears automatically; you can&apos;t pick the same subject twice.</p>
+                  </>
+                )}
 
-          {t.examTypes.includes("A-Level") && (
-            <ExamPanel title="A-Level" summary={summaryFor("A-Level")} open={expanded["A-Level"]} onToggle={() => togglePanel("A-Level")}>
-              <div className={s.apList}>
-                {t.aLevel.map((a, i) => (
-                  <div key={i} className={s.aLevelRow}>
-                    <select className="select" value={a.category} onChange={(e) => setAl(i, { category: e.target.value })}>
-                      <option value="">Category</option>
-                      {A_LEVEL_CATEGORIES.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                    <Combobox
-                      value={a.subject}
-                      onChange={(v) => setAl(i, { subject: v })}
-                      placeholder="Search subject"
-                      minChars={0}
-                      preferUp
-                      emptyHint="No matching subject — you can type your own"
-                      getOptions={A_LEVEL_SUBJECT_OPTIONS}
-                    />
-                    <select className="select" value={a.level} onChange={(e) => setAl(i, { level: e.target.value as ALevelEntry["level"] })}>
-                      <option value="">Level</option>
-                      {A_LEVEL_LEVELS.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                    <select className="select" value={a.grade} onChange={(e) => setAl(i, { grade: e.target.value })}>
-                      <option value="">Grade</option>
-                      {A_LEVEL_GRADES.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                    <select className="select" value={a.status} onChange={(e) => setAl(i, { status: e.target.value })}>
-                      <option value="">Status</option>
-                      {A_LEVEL_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                    <select className="select" value={a.board} onChange={(e) => setAl(i, { board: e.target.value })}>
-                      <option value="">Exam board</option>
-                      {EXAM_BOARDS.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                    {a.subject ? (
-                      <button type="button" className={s.removeBtn} onClick={() => removeAl(i)} aria-label={`Remove ${a.subject}`}>×</button>
-                    ) : (
-                      <span className={s.removeSpacer} aria-hidden />
-                    )}
-                  </div>
-                ))}
+                {effectiveTab === "IB" && (
+                  <>
+                    <div className={s.ibCore}>
+                      <div className={s.subhead} style={{ margin: "0 0 0.8rem" }}>IB Core</div>
+                      <div className={s.ibCoreRow}>
+                        <span className={s.ibCoreLabel}>Theory of Knowledge (TOK)<span className={s.ibCoreHint}>Graded A–E; contributes bonus points</span></span>
+                        <select className="select" value={t.ibCore.tok.status} onChange={(e) => setCore("tok", { status: e.target.value })}>
+                          <option value="">Status</option>
+                          {IB_CORE_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                        <select className="select" value={t.ibCore.tok.grade} onChange={(e) => setCore("tok", { grade: e.target.value })}>
+                          <option value="">Grade</option>
+                          {IB_CORE_GRADES.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      </div>
+                      <div className={s.ibCoreRow}>
+                        <span className={s.ibCoreLabel}>Extended Essay (EE)<span className={s.ibCoreHint}>Graded A–E; contributes bonus points</span></span>
+                        <select className="select" value={t.ibCore.ee.status} onChange={(e) => setCore("ee", { status: e.target.value })}>
+                          <option value="">Status</option>
+                          {IB_CORE_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                        <select className="select" value={t.ibCore.ee.grade} onChange={(e) => setCore("ee", { grade: e.target.value })}>
+                          <option value="">Grade</option>
+                          {IB_CORE_GRADES.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      </div>
+                      <div className={s.ibCoreRow}>
+                        <span className={s.ibCoreLabel}>Creativity, Activity, Service (CAS)<span className={s.ibCoreHint}>Pass/complete — not graded</span></span>
+                        <select className="select" value={t.ibCore.cas.status} onChange={(e) => setCore("cas", { status: e.target.value })}>
+                          <option value="">Status</option>
+                          {IB_CAS_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                        <span aria-hidden />
+                      </div>
+                    </div>
+
+                    <div className={s.subhead} style={{ marginTop: "1rem" }}>IB subjects</div>
+                    <div className={s.apList}>
+                      {t.ib.map((a, i) => {
+                        const taken = chosenIb.filter((sub) => sub !== a.subject);
+                        return (
+                          <div key={i} className={s.ibRow}>
+                            <Combobox
+                              value={a.subject}
+                              onChange={(v) => setIb(i, { subject: v })}
+                              placeholder="Search IB subject"
+                              minChars={0}
+                              preferUp
+                              emptyHint="No matching subject — you can type your own"
+                              getOptions={(q) => IB_SUBJECT_OPTIONS(q, taken)}
+                            />
+                            <select className="select" value={a.level} onChange={(e) => setIb(i, { level: e.target.value as IBEntry["level"] })}>
+                              <option value="">Level</option>
+                              {IB_LEVELS.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                            <select className="select" value={a.score ?? ""} onChange={(e) => setIb(i, { score: e.target.value ? Number(e.target.value) : null })}>
+                              <option value="">Score</option>
+                              {[7, 6, 5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
+                            </select>
+                            <select className="select" value={a.status} onChange={(e) => setIb(i, { status: e.target.value })}>
+                              <option value="">Status</option>
+                              {IB_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                            {a.subject ? (
+                              <button type="button" className={s.removeBtn} onClick={() => removeIb(i)} aria-label={`Remove ${a.subject}`}>×</button>
+                            ) : (
+                              <span className={s.removeSpacer} aria-hidden />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="field-hint">IB subjects are scored 1–7. A new row appears automatically as you add subjects.</p>
+                  </>
+                )}
+
+                {effectiveTab === "A-Level" && (
+                  <>
+                    <div className={s.apList}>
+                      {t.aLevel.map((a, i) => (
+                        <div key={i} className={s.aLevelRow}>
+                          <select className="select" value={a.category} onChange={(e) => setAl(i, { category: e.target.value })}>
+                            <option value="">Category</option>
+                            {A_LEVEL_CATEGORIES.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                          <Combobox
+                            value={a.subject}
+                            onChange={(v) => setAl(i, { subject: v })}
+                            placeholder="Search subject"
+                            minChars={0}
+                            preferUp
+                            emptyHint="No matching subject — you can type your own"
+                            getOptions={A_LEVEL_SUBJECT_OPTIONS}
+                          />
+                          <select className="select" value={a.level} onChange={(e) => setAl(i, { level: e.target.value as ALevelEntry["level"] })}>
+                            <option value="">Level</option>
+                            {A_LEVEL_LEVELS.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                          <select className="select" value={a.grade} onChange={(e) => setAl(i, { grade: e.target.value })}>
+                            <option value="">Grade</option>
+                            {A_LEVEL_GRADES.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                          <select className="select" value={a.status} onChange={(e) => setAl(i, { status: e.target.value })}>
+                            <option value="">Status</option>
+                            {A_LEVEL_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                          <select className="select" value={a.board} onChange={(e) => setAl(i, { board: e.target.value })}>
+                            <option value="">Exam board</option>
+                            {EXAM_BOARDS.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                          {a.subject ? (
+                            <button type="button" className={s.removeBtn} onClick={() => removeAl(i)} aria-label={`Remove ${a.subject}`}>×</button>
+                          ) : (
+                            <span className={s.removeSpacer} aria-hidden />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="field-hint">A-Levels are graded A*–E. Add each subject with its level and exam board. A new row appears automatically.</p>
+                  </>
+                )}
               </div>
-              <p className="field-hint">A-Levels are graded A*–E. Add each subject with its level and exam board. A new row appears automatically.</p>
-            </ExamPanel>
+            </div>
           )}
         </>
       )}
@@ -1055,15 +1071,15 @@ function StepReview({ profile, onEdit }: StepProps & { onEdit: (n: number) => vo
 
 function testingSummary(t: StudentProfile["testing"]): string {
   const parts: string[] = [];
-  if (t.examTypes.includes("AP")) {
+  if (t.tests.includes("AP")) {
     const n = t.ap.filter((a) => a.subject).length;
     if (n) parts.push(`${n} AP`);
   }
-  if (t.examTypes.includes("IB")) {
+  if (t.tests.includes("IB")) {
     const n = t.ib.filter((a) => a.subject).length;
     if (n) parts.push(`${n} IB`);
   }
-  if (t.examTypes.includes("A-Level")) {
+  if (t.tests.includes("A-Level")) {
     const n = t.aLevel.filter((a) => a.subject).length;
     if (n) parts.push(`${n} A-Level`);
   }
