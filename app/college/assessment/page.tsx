@@ -9,6 +9,7 @@ import { Icon } from "@/components/Icon";
 import { CountUp } from "@/components/CountUp";
 import { Radar } from "@/components/Radar";
 import { staggerParent, riseItem } from "@/lib/motion";
+import type { AwardImpact } from "@/lib/types";
 import s from "./assessment.module.css";
 
 const RADAR_LABELS: Record<string, string> = {
@@ -271,7 +272,7 @@ export default function AssessmentPage() {
                     </div>
                     <ul className={s.awardItems}>
                       {g.items.map((it, j) => (
-                        <li key={j}><span className={s.awardDot} style={{ background: color }} />{it}</li>
+                        <AwardRow key={j} item={it} color={color} />
                       ))}
                     </ul>
                   </div>
@@ -519,6 +520,59 @@ function FitMetrics({ metrics }: { metrics: { name: string; pct: number; avg: nu
           <span className={s.fitUser} style={{ left: `${m.pct}%`, background: c }} />
         </div>
         <p className={s.fitDesc}>{m.detail}</p>
+      </div>
+    </div>
+  );
+}
+
+/** One award: collapsed shows the title + a compact impact chip; expanded
+ *  reveals significance & impact meters and a one-line rationale. */
+function AwardRow({ item, color }: { item: AwardImpact; color: string }) {
+  const rated = item.significance > 0 || item.impact > 0;
+  const [open, setOpen] = useState(false);
+
+  if (!rated) {
+    // Legacy / unrated award — render as a plain bullet, no toggle.
+    return <li className={s.awardItemPlain}><span className={s.awardDot} style={{ background: color }} />{item.title}</li>;
+  }
+
+  return (
+    <li className={s.awardItem} data-open={open}>
+      <button
+        type="button"
+        className={s.awardToggle}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className={s.awardDot} style={{ background: color }} />
+        <span className={s.awardTitle}>{item.title}</span>
+        <span className={s.awardImpactChip} style={{ color, borderColor: `color-mix(in srgb, ${color} 45%, transparent)` }}>
+          Impact {item.impact.toFixed(1)}
+        </span>
+        <span className={s.awardChevron} data-open={open} aria-hidden><Icon name="arrow" size={13} /></span>
+      </button>
+      {open && (
+        <div className={s.awardDetail}>
+          <AwardMeter label="Significance" hint="Inherent prestige / selectivity" value={item.significance} color={color} />
+          <AwardMeter label="Impact" hint="Weight for your profile" value={item.impact} color={color} />
+          {item.note && <p className={s.awardNote}>{item.note}</p>}
+        </div>
+      )}
+    </li>
+  );
+}
+
+function AwardMeter({ label, hint, value, color }: { label: string; hint: string; value: number; color: string }) {
+  const pct = Math.max(0, Math.min(100, (value / 5) * 100));
+  return (
+    <div className={s.awardMeter}>
+      <div className={s.awardMeterHead}>
+        <span className={s.awardMeterLabel}>{label}</span>
+        <span className={s.awardMeterHint}>{hint}</span>
+        <span className={s.awardMeterValue} style={{ color }}>{value.toFixed(1)}<span className={s.awardMeterMax}>/5</span></span>
+      </div>
+      <div className={s.awardMeterTrack}>
+        <div className={s.awardMeterFill} style={{ width: `${pct}%`, background: color }} />
       </div>
     </div>
   );

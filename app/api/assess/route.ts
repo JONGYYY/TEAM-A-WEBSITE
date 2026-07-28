@@ -3,7 +3,7 @@ import { generateAssessment } from "@/lib/generateAssessment";
 import { chatJSON, hasOpenAI, EVAL_MODEL } from "@/lib/openai";
 import { EVAL_SYSTEM, buildEvalUser } from "@/lib/prompts";
 import { localRecommendations } from "@/lib/recommend";
-import type { StudentProfile, AssessmentReport, Recommendations, MajorRec, CollegeRec } from "@/lib/types";
+import type { StudentProfile, AssessmentReport, Recommendations, MajorRec, CollegeRec, AwardImpact } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -69,7 +69,7 @@ function validate(r: Partial<AssessmentReport>, profile: StudentProfile): Assess
     academic: r.academic,
     extracurricular: r.extracurricular,
     career: r.career,
-    awards: r.awards,
+    awards: normalizeAwards(r.awards),
     narrative: r.narrative,
     strengths: Array.isArray(r.strengths) ? r.strengths : [],
     redFlags: Array.isArray(r.redFlags) ? r.redFlags : [],
@@ -77,6 +77,42 @@ function validate(r: Partial<AssessmentReport>, profile: StudentProfile): Assess
     actionItems: Array.isArray(r.actionItems) ? r.actionItems : [],
     recommendations: normalizeRecommendations(r.recommendations, profile),
   } as AssessmentReport;
+}
+
+/**
+ * Coerces each award item into the { title, significance, impact, note } shape.
+ * Tolerates the model returning a bare string, a partial object, or a 0–100
+ * scale for the ratings (rescaled to 1–5). Keeps groups/counts intact.
+ */
+function normalizeAwards(a: AssessmentReport["awards"]): AssessmentReport["awards"] {
+  const clampScore = (n: unknown) => {
+    let x = Number(n);
+    if (!Number.isFinite(x) || x <= 0) return 0; // 0 = "not rated" → UI hides meters
+    if (x > 5) x = x / 20; // rescale a stray 0–100 value
+    return Math.max(1, Math.min(5, Math.round(x * 10) / 10));
+  };
+  const toItem = (it: unknown): AwardImpact => {
+    if (typeof it === "string") return { title: it, significance: 0, impact: 0, note: "" };
+    const o = (it || {}) as Partial<AwardImpact>;
+    return {
+      title: String(o.title || "").trim(),
+      significance: clampScore(o.significance),
+      impact: clampScore(o.impact),
+      note: String(o.note || "").trim(),
+    };
+  };
+  const groups = Array.isArray(a?.groups)
+    ? a.groups.map((g) => ({
+        level: String(g?.level || "").trim(),
+        count: Number.isFinite(Number(g?.count)) ? Number(g.count) : (Array.isArray(g?.items) ? g.items.length : 0),
+        items: Array.isArray(g?.items) ? (g.items as unknown[]).map(toItem).filter((x) => x.title) : [],
+      }))
+    : [];
+  return {
+    rating: String(a?.rating || "").trim() || "Building",
+    groups,
+    summary: String(a?.summary || "").trim(),
+  };
 }
 
 /**

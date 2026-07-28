@@ -129,6 +129,18 @@ export interface StudentProfile {
   meta: { lastStep: number; updatedAt: string; resumeApplied?: boolean };
 }
 
+/** One award with two independent 1.0–5.0 ratings so honors at the SAME level
+ *  can still be ranked against each other:
+ *   - significance: the honor's inherent prestige/selectivity (how hard to earn)
+ *   - impact: how much it moves THIS student's admissions profile (relevance/spike fit)
+ */
+export interface AwardImpact {
+  title: string;
+  significance: number; // 1.0–5.0
+  impact: number; // 1.0–5.0
+  note: string; // one concise sentence justifying the two ratings
+}
+
 export interface AssessmentReport {
   overallScore: number;
   verdict: string;
@@ -144,7 +156,7 @@ export interface AssessmentReport {
     overall: string[];
   };
   career: { rating: string; doingWell: string[]; differentiated: string[]; trajectory: string[] };
-  awards: { rating: string; groups: { level: string; count: number; items: string[] }[]; summary: string };
+  awards: { rating: string; groups: { level: string; count: number; items: AwardImpact[] }[]; summary: string };
   narrative: {
     rating: string;
     spike: string;

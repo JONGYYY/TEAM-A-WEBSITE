@@ -151,7 +151,7 @@ export const ASSESSMENT_SHAPE = {
   academic: { rating: "", stats: [{ label: "", value: "", note: "" }], comparison: [{ metric: "", student: "", schoolAvg: "", delta: "" }] },
   extracurricular: { rating: "", items: [{ tier: 1, category: "", title: "", rationale: "" }], overall: [""] },
   career: { rating: "", doingWell: [""], differentiated: [""], trajectory: [""] },
-  awards: { rating: "", groups: [{ level: "", count: 0, items: [""] }], summary: "" },
+  awards: { rating: "", groups: [{ level: "", count: 0, items: [{ title: "", significance: 0, impact: 0, note: "" }] }], summary: "" },
   narrative: { rating: "", spike: "", committeeDescription: [""], fitMetrics: [{ name: "", pct: 0, avg: 0, label: "", detail: "" }] },
   strengths: [{ n: 1, title: "", points: [""] }],
   redFlags: [{ title: "", severity: "moderate", points: [""] }],
@@ -187,6 +187,10 @@ SCORING — every radar axis is 1.0–5.0 (one decimal). overallScore is ALSO on
 COVERAGE (do NOT drop the student's data):
 - extracurricular.items: include an entry for EVERY activity the student submitted, ranked by real impact (highest first), UP TO 10. If they submitted 10 or fewer, include ALL of them — never silently omit activities. If more than 10, keep the 10 highest-impact and note the rest in extracurricular.overall.
 - awards.groups: collectively list the student's awards ranked by selectivity/impact (highest first), UP TO 10 total items across the groups. If they submitted 10 or fewer, include ALL of them. Each group's "count" is the true number of that level even if some are beyond the top-10 display.
+- Each award item is an OBJECT: { "title", "significance" (1.0-5.0, one decimal), "impact" (1.0-5.0, one decimal), "note" (one concise sentence) }. The two ratings MUST differentiate awards even within the SAME level — e.g. two "International" honors should rarely tie: an International Math Olympiad medal outranks an international online essay contest. Anchors:
+  - significance = the honor's INHERENT prestige/selectivity (how hard it is to earn): 5.0 = elite, world-class (IMO/ISEF grand award, Intel/Regeneron finalist); 4.0 = highly selective national; 3.0 = competitive state/regional; 2.0 = school/local; 1.0 = participation.
+  - impact = how much THIS award moves THIS student's admissions profile: weigh relevance to their intended major/spike, recency, and how much it corroborates their narrative. A prestigious award unrelated to their story can have lower impact than a slightly less prestigious one that reinforces their spike.
+  - note = one sentence explaining why it earned those two ratings. Do NOT invent awards; only rate what the student submitted.
 - narrative: is there a coherent "spike"/throughline connecting interests, activities, and goals? 5=distinct, memorable angle; 3=competent but common; 1=scattered/insufficient evidence.
 - strengths: overall density of genuine standout qualities (derive from evidence).
 - redFlags: 5 = NO meaningful concerns; LOWER scores mean MORE/serious concerns (e.g. grade trend, rigor gaps, thin involvement, inconsistencies). Be specific; if none, say so and score high.

@@ -1,4 +1,4 @@
-import type { StudentProfile, AssessmentReport } from "./types";
+import type { StudentProfile, AssessmentReport, Award, AwardImpact } from "./types";
 import { localRecommendations } from "./recommend";
 
 const clamp = (n: number, lo = 1, hi = 5) => Math.max(lo, Math.min(hi, n));
@@ -130,13 +130,16 @@ export function generateAssessment(p: StudentProfile): AssessmentReport {
     awards: {
       rating: awardsScore >= 4.3 ? "Nationally Distinguished" : awardsScore >= 3.3 ? "Strong, Multi-Domain" : "Building",
       groups: (() => {
-        // Show the top 10 awards by selectivity; counts stay true to the full set.
+        const interests = p.intake.interests.map((x) => x.toLowerCase());
+        const upper = (p.intake.grade ?? 11) >= 11;
+        // Show the top 10 awards by significance; counts stay true to the full set.
         const rank = (r: string) => (/international/i.test(r) ? 5 : /national/i.test(r) ? 4 : /state/i.test(r) ? 3 : /region/i.test(r) ? 2 : 1);
         const top = [...awards].sort((a, b) => rank(b.recognition) - rank(a.recognition)).slice(0, 10);
+        const rate = (a: (typeof awards)[number]) => rateAward(a, interests, upper);
         return [
-          { level: "National / International", count: nat, items: top.filter((a) => /national|international/i.test(a.recognition)).map((a) => a.title) },
-          { level: "State", count: stateA, items: top.filter((a) => /state/i.test(a.recognition)).map((a) => a.title) },
-          { level: "Regional / School", count: awards.length - nat - stateA, items: top.filter((a) => !/national|international|state/i.test(a.recognition)).map((a) => a.title) },
+          { level: "National / International", count: nat, items: top.filter((a) => /national|international/i.test(a.recognition)).map(rate) },
+          { level: "State", count: stateA, items: top.filter((a) => /state/i.test(a.recognition)).map(rate) },
+          { level: "Regional / School", count: awards.length - nat - stateA, items: top.filter((a) => !/national|international|state/i.test(a.recognition)).map(rate) },
         ].filter((g) => g.count > 0);
       })(),
       summary: awards.length ? "Recognition across multiple domains strengthens credibility — breadth of external validation is rare." : "No awards listed yet — add honors to demonstrate external validation.",
@@ -175,6 +178,49 @@ function spikeFor(p: StudentProfile, hasLeadership: boolean): string {
   if (hasLeadership) return `A builder in ${i} — turns interest into organizations and outcomes.`;
   return `A focused ${i} student — ready to convert passion into leadership.`;
 }
+
+/**
+ * Deterministic per-award scoring so two honors at the SAME level still rank
+ * apart. `significance` = inherent prestige (level + prestige keywords in the
+ * title); `impact` = significance nudged by relevance to the student's stated
+ * interests and recency. Both on the 1.0–5.0 scale.
+ */
+function rateAward(a: Award, interests: string[], upperclassman: boolean): AwardImpact {
+  const r = a.recognition || "";
+  const base =
+    /international/i.test(r) ? 4.6 :
+    /national/i.test(r) ? 4.0 :
+    /state/i.test(r) ? 3.1 :
+    /region/i.test(r) ? 2.4 :
+    /school|local/i.test(r) ? 1.8 : 2.0;
+
+  const title = a.title.toLowerCase();
+  // Prestige signals that separate a marquee honor from a routine one.
+  let prestige = 0;
+  if (/olympiad|isef|regeneron|intel|siemens|davidson/.test(title)) prestige += 0.8;
+  if (/\b(gold|grand|1st|first|champion|national winner|medal)\b/.test(title)) prestige += 0.45;
+  if (/\b(finalist|semifinalist|top \d+|honou?rable|silver|bronze|2nd|3rd)\b/.test(title)) prestige += 0.2;
+  const significance = clamp(round1(base + Math.min(prestige, 1.0)));
+
+  // Impact: relevance to the student's spike + a small recency bump.
+  const relevant = interests.some((i) => i && title.includes(i));
+  let impact = significance + (relevant ? 0.4 : -0.15) + (upperclassman ? 0.1 : 0);
+  impact = clamp(round1(impact));
+
+  const level =
+    significance >= 4.4 ? "an elite, highly selective honor" :
+    significance >= 3.6 ? "a strong national-caliber honor" :
+    significance >= 2.8 ? "a competitive state-level honor" :
+    significance >= 2.1 ? "a solid regional honor" : "a school/local honor";
+  const rel = relevant
+    ? "and it directly reinforces your intended focus, so it carries extra weight in your story"
+    : "though it sits a little outside your core focus, so its narrative pull is slightly lower";
+  const note = `${cap(a.title)} reads as ${level} ${rel}.`;
+
+  return { title: a.title, significance, impact, note };
+}
+
+function cap(s: string) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
 function buildStrengths(p: StudentProfile, m: { academic: number; leadership: number; awards: number; sat: number; gpa: number; apCount: number }): AssessmentReport["strengths"] {
   const out: AssessmentReport["strengths"] = [];
