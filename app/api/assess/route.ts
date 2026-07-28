@@ -44,6 +44,12 @@ function validate(r: Partial<AssessmentReport>, profile: StudentProfile): Assess
   if (!r || typeof r !== "object") return null;
   if (!r.academic || !r.extracurricular || !r.career || !r.awards || !r.narrative) return null;
 
+  // Deterministic reference with GUARANTEED coverage (every activity up to 10;
+  // top-10 awards grouped with true counts). Used to backfill anything the LLM
+  // silently dropped, so the report never lists fewer items than the student
+  // submitted.
+  const local = generateAssessment(profile);
+
   const clamp5 = (n: unknown) => {
     const x = Number(n);
     return Number.isFinite(x) ? Math.max(1, Math.min(5, Math.round(x * 10) / 10)) : 3;
@@ -67,9 +73,9 @@ function validate(r: Partial<AssessmentReport>, profile: StudentProfile): Assess
     verdict: String(r.verdict || "Evaluation complete"),
     radar,
     academic: r.academic,
-    extracurricular: r.extracurricular,
+    extracurricular: coverActivities(r.extracurricular, local.extracurricular),
     career: r.career,
-    awards: normalizeAwards(r.awards),
+    awards: coverAwards(normalizeAwards(r.awards), local.awards),
     narrative: r.narrative,
     strengths: Array.isArray(r.strengths) ? r.strengths : [],
     redFlags: Array.isArray(r.redFlags) ? r.redFlags : [],
@@ -112,6 +118,80 @@ function normalizeAwards(a: AssessmentReport["awards"]): AssessmentReport["award
     rating: String(a?.rating || "").trim() || "Building",
     groups,
     summary: String(a?.summary || "").trim(),
+  };
+}
+
+type ECItem = AssessmentReport["extracurricular"]["items"][number];
+
+const fuzzyEq = (a: string, b: string) => {
+  const x = a.toLowerCase().trim(), y = b.toLowerCase().trim();
+  return !!x && !!y && (x === y || x.includes(y) || y.includes(x));
+};
+
+/**
+ * Guarantees the extracurricular list covers every activity the student
+ * submitted (up to 10). Keeps the LLM's tiers/rationales, then backfills any
+ * activities it dropped from the deterministic generator.
+ */
+function coverActivities(
+  ec: AssessmentReport["extracurricular"] | undefined,
+  local: AssessmentReport["extracurricular"],
+): AssessmentReport["extracurricular"] {
+  const localItems = local.items.filter((i) => i.title && i.title !== "No activities yet");
+  const target = localItems.length;
+
+  const clampTier = (n: unknown) => {
+    const x = Math.round(Number(n));
+    return Number.isFinite(x) && x >= 1 && x <= 4 ? x : 3;
+  };
+  const ai: ECItem[] = Array.isArray(ec?.items)
+    ? ec!.items
+        .filter((x): x is ECItem => !!x && typeof x.title === "string" && !!x.title.trim())
+        .map((x) => ({ tier: clampTier(x.tier), category: String(x.category || "Activity"), title: String(x.title).trim(), rationale: String(x.rationale || "") }))
+    : [];
+
+  let items = ai.slice(0, 10);
+  if (items.length < target) {
+    for (const li of localItems) {
+      if (items.length >= target) break;
+      if (!items.some((it) => fuzzyEq(it.title, li.title))) items.push(li);
+    }
+    // If fuzzy-dedup left us short, append remaining local items outright.
+    for (const li of localItems) {
+      if (items.length >= target) break;
+      if (!items.includes(li)) items.push(li);
+    }
+  }
+
+  return {
+    rating: String(ec?.rating || local.rating),
+    items: items.length ? items : local.items,
+    overall: Array.isArray(ec?.overall) && ec!.overall.length ? ec!.overall : local.overall,
+  };
+}
+
+/**
+ * Guarantees the awards section covers the same set the deterministic generator
+ * would (top-10, grouped, with true counts). Prefers the LLM's per-award
+ * ratings/notes where a title matches; backfills the rest from local.
+ */
+function coverAwards(
+  ai: AssessmentReport["awards"],
+  local: AssessmentReport["awards"],
+): AssessmentReport["awards"] {
+  const localTotal = local.groups.reduce((n, g) => n + g.items.length, 0);
+  const aiFlat = ai.groups.flatMap((g) => g.items);
+  if (aiFlat.length >= localTotal) return ai; // LLM already covers everything
+
+  const groups = local.groups.map((lg) => ({
+    level: lg.level,
+    count: lg.count,
+    items: lg.items.map((li) => aiFlat.find((x) => fuzzyEq(x.title, li.title)) ?? li),
+  }));
+  return {
+    rating: ai.rating || local.rating,
+    groups,
+    summary: ai.summary || local.summary,
   };
 }
 
