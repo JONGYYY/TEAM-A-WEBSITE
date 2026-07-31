@@ -1,4 +1,4 @@
-.header { max-width: 820px; margin: 0 auto 2rem; }
+.header { max-width: min(1180px, 100% - 3rem); margin: 0 auto 2rem; }
 .title { margin: 0.35rem 0 1.1rem; }
 .ledger {
   height: 4px;
@@ -77,7 +77,7 @@
   .stepItem { padding: 0.3rem; }
 }
 
-.stepBody { max-width: 820px; margin: 0 auto; }
+.stepBody { max-width: min(1180px, 100% - 3rem); margin: 0 auto; }
 .card {
   background: var(--paper-raised);
   border: 1px solid var(--hairline);
@@ -481,7 +481,7 @@
 }
 
 .footer {
-  max-width: 820px;
+  max-width: min(1180px, 100% - 3rem);
   margin: 1.5rem auto 0;
   display: flex;
   align-items: center;
