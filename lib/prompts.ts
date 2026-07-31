@@ -179,7 +179,7 @@ CORE PRINCIPLES
 6. NO OVERGENERALIZATION. Avoid sweeping claims ("you will get into X", "guaranteed", "no chance"). Speak in terms of profile strength and fit relative to a competitive applicant pool, not deterministic outcomes.
 
 SCORING — every radar axis is 1.0–5.0 (one decimal). overallScore is ALSO on the 1.0–5.0 scale (one decimal) — a holistic weighted read, NOT a 0–100 number and NOT a percentage. Anchors:
-- academic: GPA, rigor (AP exam count+scores 1-5, OR IB subjects HL/SL scores 1-7 + TOK/EE/CAS core, OR A-Level subjects with grades A*-E), testing relative to target tier. testing.tests is an ARRAY of the tests the student reports (SAT/ACT/AP/IB/A-Level) — they may use more than one system (e.g. both AP and IB); judge rigor across every system they list. 5=top-decile rigor+results for the target tier; 3=solid/average; 1=well below or largely missing with no context.
+- academic: GPA, rigor (AP exam count+scores 1-5, OR IB subjects HL/SL scores 1-7 + TOK/EE/CAS core, OR A-Level subjects with grades A*-E, OR French Baccalauréat subjects scored out of 20 — an avg >=16 is "Mention Très bien", >=14 "Bien", >=12 "Assez bien"), testing relative to target tier. testing.tests is an ARRAY of the tests the student reports (SAT/ACT/English/AP/IB/A-Level/FrenchBac) — they may use more than one system; judge rigor across every academic system they list. Treat English-proficiency scores (TOEFL/IELTS/PTE/Duolingo) as an English-language-readiness data point for international applicants, NOT as an academic-rigor driver. 5=top-decile rigor+results for the target tier; 3=solid/average; 1=well below or largely missing with no context.
 - extracurricular: depth, leadership, impact, sustained commitment. Classify items into tiers 1 (national/exceptional) to 4 (participatory). 5=clear Tier-1/2 leadership with impact; 3=steady involvement; 1=little/none.
 - career: clarity and coherence of direction tied to interests + activities. 5=focused, evidenced trajectory; 3=emerging direction; 1=undefined (note: undefined is normal for 9th/10th — calibrate).
 - awards: selectivity and level (School→International) and quantity. 5=national/international honors; 3=regional/state; 1=none yet.
@@ -218,6 +218,14 @@ export function buildEvalUser(profile: StudentProfile) {
     apCount: profile.testing.ap.filter((a) => a.subject).length,
     ibCount: profile.testing.ib.filter((a) => a.subject).length,
     aLevelCount: profile.testing.aLevel.filter((a) => a.subject).length,
+    frenchBac: (() => {
+      const fb = profile.testing.frenchBac;
+      const scores = [fb.fw, fb.fo, fb.philo, fb.grandOral, ...fb.specialties].map((r) => r.score).filter((v): v is number => v != null);
+      return scores.length ? { avg: Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10, outOf: 20 } : null;
+    })(),
+    english: profile.testing.english.test
+      ? { test: profile.testing.english.test, overall: profile.testing.english.scores[profile.testing.english.test].overall }
+      : null,
     awardCount: profile.awards.filter((a) => a.title).length,
     activityCount: profile.activities.filter((a) => a.type || a.organization).length,
     note:

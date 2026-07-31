@@ -1,4 +1,4 @@
-import type { StudentProfile, TestType } from "./types";
+import type { StudentProfile, TestType, EnglishTest, EnglishSubScores } from "./types";
 
 export const INTERESTS = [
   "Arts", "Humanities", "Political Science", "Business", "Economics", "Accounting",
@@ -165,20 +165,105 @@ export const AP_SUBJECTS = [
   "AP Seminar", "AP Research",
 ];
 
-export const EXAM_TYPES: { id: "AP" | "IB" | "A-Level"; label: string }[] = [
+export const EXAM_TYPES: { id: "AP" | "IB" | "A-Level" | "FrenchBac"; label: string }[] = [
   { id: "AP", label: "AP Subject Testing" },
   { id: "IB", label: "IB Subject Testing" },
   { id: "A-Level", label: "A-Level" },
+  { id: "FrenchBac", label: "French Baccalauréat" },
 ];
 
 /** All selectable tests driving the Testing-step picker. "score" tests (SAT/ACT)
- *  render as a single number; "subject" tests (AP/IB/A-Level) render subject lists. */
-export const TEST_TYPES: { id: TestType; label: string; blurb: string; kind: "score" | "subject" }[] = [
+ *  render as a single number; "english" (proficiency) renders a grouped panel;
+ *  "subject" tests (AP/IB/A-Level/FrenchBac) render subject lists as tabs. */
+export const TEST_TYPES: { id: TestType; label: string; blurb: string; kind: "score" | "subject" | "english" }[] = [
   { id: "SAT", label: "SAT", blurb: "Total score, 400–1600.", kind: "score" },
   { id: "ACT", label: "ACT", blurb: "Composite, 1–36.", kind: "score" },
+  { id: "English", label: "English Proficiency", blurb: "TOEFL / IELTS / PTE / Duolingo.", kind: "english" },
   { id: "AP", label: "AP", blurb: "US Advanced Placement — 1–5.", kind: "subject" },
   { id: "IB", label: "IB", blurb: "Int'l Baccalaureate — 1–7 + core.", kind: "subject" },
   { id: "A-Level", label: "A-Level", blurb: "GCE / Cambridge — A*–E.", kind: "subject" },
+  { id: "FrenchBac", label: "French Bac", blurb: "Baccalauréat — scored out of 20.", kind: "subject" },
+];
+
+/** French Baccalauréat specialty (spécialité) subjects a student may select. */
+export const FRENCH_BAC_SPECIALTIES = [
+  "Philosophie",
+  "Histoire-Géographie",
+  "Langue Vivante A (Anglais)",
+  "Langue Vivante A (Autre)",
+  "Langue Vivante B",
+  "Mathématiques",
+  "Physique-Chimie",
+  "SVT (Sciences de la Vie et de la Terre)",
+  "SES (Sciences Économiques et Sociales)",
+  "HGGSP (Histoire-Géographie, Géopolitique et Sciences Politiques)",
+  "NSI (Numérique et Sciences Informatiques)",
+  "LLCER (Langues, Littératures et Cultures Étrangères)",
+  "HLP (Humanités, Littérature et Philosophie)",
+  "SI (Sciences de l'Ingénieur)",
+  "Arts",
+  "Éducation Physique et Sportive (EPS)",
+];
+export const FRENCH_BAC_STATUSES = ["Predicted", "Final"];
+
+/** Mention (French Bac honors) from an overall /20 average. */
+export function frenchBacMention(avg: number): string {
+  if (avg >= 16) return "Mention Très bien";
+  if (avg >= 14) return "Mention Bien";
+  if (avg >= 12) return "Mention Assez bien";
+  if (avg >= 10) return "Passed";
+  return "";
+}
+
+/** One English-proficiency test's reporting shape: which sub-skills it uses and
+ *  the numeric bounds for each field. */
+export interface EnglishTestSpec {
+  id: EnglishTest;
+  label: string;
+  skills: { key: keyof EnglishSubScores; label: string; min: number; max: number; step: number }[];
+  overall: { label: string; min: number; max: number; step: number; readOnly?: boolean };
+}
+
+export const ENGLISH_TESTS: EnglishTestSpec[] = [
+  {
+    id: "TOEFL",
+    label: "TOEFL iBT",
+    skills: [
+      { key: "reading", label: "Reading", min: 0, max: 30, step: 1 },
+      { key: "listening", label: "Listening", min: 0, max: 30, step: 1 },
+      { key: "speaking", label: "Speaking", min: 0, max: 30, step: 1 },
+      { key: "writing", label: "Writing", min: 0, max: 30, step: 1 },
+    ],
+    overall: { label: "Total", min: 0, max: 120, step: 1 },
+  },
+  {
+    id: "IELTS",
+    label: "IELTS Academic",
+    skills: [
+      { key: "reading", label: "Reading", min: 0, max: 9, step: 0.5 },
+      { key: "listening", label: "Listening", min: 0, max: 9, step: 0.5 },
+      { key: "writing", label: "Writing", min: 0, max: 9, step: 0.5 },
+      { key: "speaking", label: "Speaking", min: 0, max: 9, step: 0.5 },
+    ],
+    overall: { label: "Overall band", min: 0, max: 9, step: 0.5 },
+  },
+  {
+    id: "PTE",
+    label: "PTE Academic",
+    skills: [
+      { key: "reading", label: "Reading", min: 10, max: 90, step: 1 },
+      { key: "listening", label: "Listening", min: 10, max: 90, step: 1 },
+      { key: "writing", label: "Writing", min: 10, max: 90, step: 1 },
+      { key: "speaking", label: "Speaking", min: 10, max: 90, step: 1 },
+    ],
+    overall: { label: "Overall", min: 10, max: 90, step: 1 },
+  },
+  {
+    id: "Duolingo",
+    label: "Duolingo English Test",
+    skills: [],
+    overall: { label: "Overall", min: 10, max: 160, step: 5 },
+  },
 ];
 
 // IB Diploma Programme subjects, grouped by the six subject groups + core.
@@ -219,6 +304,28 @@ export const A_LEVEL_GRADES = ["A*", "A", "B", "C", "D", "E"];
 export const A_LEVEL_STATUSES = ["Planned", "In progress", "Predicted", "Final"];
 export const EXAM_BOARDS = ["AQA", "Edexcel (Pearson)", "OCR", "Cambridge (CIE)", "WJEC / Eduqas", "Other"];
 
+export function emptyFrenchBac(): StudentProfile["testing"]["frenchBac"] {
+  const blank = () => ({ score: null, status: "" });
+  return {
+    fw: blank(),
+    fo: blank(),
+    philo: blank(),
+    grandOral: blank(),
+    specialties: [
+      { subject: "", score: null, status: "" },
+      { subject: "", score: null, status: "" },
+    ],
+  };
+}
+
+export function emptyEnglish(): StudentProfile["testing"]["english"] {
+  const blank = () => ({ reading: null, listening: null, writing: null, speaking: null, overall: null });
+  return {
+    test: "",
+    scores: { TOEFL: blank(), IELTS: blank(), PTE: blank(), Duolingo: blank() },
+  };
+}
+
 export function emptyProfile(): StudentProfile {
   return {
     intake: { grade: null, interests: [], primaryGoal: null, mood: null, targetSelectivity: null, completed: false },
@@ -232,6 +339,8 @@ export function emptyProfile(): StudentProfile {
       ib: [{ subject: "", level: "", score: null, status: "" }],
       ibCore: { tok: { status: "", grade: "" }, ee: { status: "", grade: "" }, cas: { status: "" } },
       aLevel: [{ category: "", subject: "", level: "", grade: "", status: "", board: "" }],
+      frenchBac: emptyFrenchBac(),
+      english: emptyEnglish(),
       noTestsYet: false,
     },
     preference: { regions: [], interests: [], institutionType: [], specialDesignation: [], campusCulture: [], financialAidImportance: "", setting: [] },
@@ -252,12 +361,17 @@ export function normalizeProfile(raw: unknown): StudentProfile {
   const r = raw as Partial<StudentProfile>;
   const t = (r.testing || {}) as Partial<StudentProfile["testing"]> & { examType?: string; examTypes?: string[] };
   const core = (t.ibCore || {}) as Partial<StudentProfile["testing"]["ibCore"]>;
+  const fbBase = emptyFrenchBac();
+  const fb = (t.frenchBac || {}) as Partial<StudentProfile["testing"]["frenchBac"]>;
+  const engBase = emptyEnglish();
+  const eng = (t.english || {}) as Partial<StudentProfile["testing"]["english"]>;
+  const engScores = (eng.scores || {}) as Partial<StudentProfile["testing"]["english"]["scores"]>;
 
   // Migrate to the unified `tests` array. Sources, in order:
   //  - subject systems from `tests`, legacy `examTypes[]`, or legacy `examType`
   //  - SAT/ACT inferred from present scores (older schemas had no selection)
   const isTest = (x: unknown): x is TestType =>
-    x === "SAT" || x === "ACT" || x === "AP" || x === "IB" || x === "A-Level";
+    x === "SAT" || x === "ACT" || x === "English" || x === "AP" || x === "IB" || x === "A-Level" || x === "FrenchBac";
   const tests: TestType[] = [];
   const push = (x: TestType) => { if (!tests.includes(x)) tests.push(x); };
 
@@ -289,6 +403,22 @@ export function normalizeProfile(raw: unknown): StudentProfile {
         tok: { ...base.testing.ibCore.tok, ...(core.tok || {}) },
         ee: { ...base.testing.ibCore.ee, ...(core.ee || {}) },
         cas: { ...base.testing.ibCore.cas, ...(core.cas || {}) },
+      },
+      frenchBac: {
+        fw: { ...fbBase.fw, ...(fb.fw || {}) },
+        fo: { ...fbBase.fo, ...(fb.fo || {}) },
+        philo: { ...fbBase.philo, ...(fb.philo || {}) },
+        grandOral: { ...fbBase.grandOral, ...(fb.grandOral || {}) },
+        specialties: Array.isArray(fb.specialties) && fb.specialties.length ? fb.specialties : fbBase.specialties,
+      },
+      english: {
+        test: eng.test === "TOEFL" || eng.test === "IELTS" || eng.test === "PTE" || eng.test === "Duolingo" ? eng.test : "",
+        scores: {
+          TOEFL: { ...engBase.scores.TOEFL, ...(engScores.TOEFL || {}) },
+          IELTS: { ...engBase.scores.IELTS, ...(engScores.IELTS || {}) },
+          PTE: { ...engBase.scores.PTE, ...(engScores.PTE || {}) },
+          Duolingo: { ...engBase.scores.Duolingo, ...(engScores.Duolingo || {}) },
+        },
       },
     },
     awards: Array.isArray(r.awards) && r.awards.length ? r.awards : base.awards,

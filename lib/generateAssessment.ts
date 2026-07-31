@@ -15,11 +15,18 @@ export function generateAssessment(p: StudentProfile): AssessmentReport {
   const apCount = p.testing.ap.filter((a) => a.subject).length;
   const name = `${p.basic.firstName} ${p.basic.lastName}`.trim() || "This student";
 
+  // French Bac average (out of 20), if the student reports it.
+  const fb = p.testing.frenchBac;
+  const fbScores = [fb.fw, fb.fo, fb.philo, fb.grandOral, ...fb.specialties].map((r) => r.score).filter((v): v is number => v != null);
+  const fbAvg = fbScores.length ? fbScores.reduce((a, b) => a + b, 0) / fbScores.length : 0;
+
   // --- scores ---
   let academic = 2.5;
   if (gpa >= 3.95) academic += 1.6; else if (gpa >= 3.8) academic += 1.2; else if (gpa >= 3.5) academic += 0.7; else if (gpa > 0) academic += 0.3;
   if (sat >= 1550 || act >= 35) academic += 0.9; else if (sat >= 1450 || act >= 33) academic += 0.6; else if (sat >= 1300 || act >= 29) academic += 0.3;
   if (apCount >= 6) academic += 0.4; else if (apCount >= 3) academic += 0.2;
+  // French Bac rigor: mirror the mention thresholds (>=16 Très bien ... >=12 Assez bien).
+  if (fbAvg >= 16) academic += 1.0; else if (fbAvg >= 14) academic += 0.6; else if (fbAvg >= 12) academic += 0.3; else if (fbAvg > 0) academic += 0.1;
   academic = clamp(round1(academic));
 
   const nat = awards.filter((a) => /national|international/i.test(a.recognition)).length;

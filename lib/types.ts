@@ -48,11 +48,15 @@ export interface APEntry {
   score: number | null;
 }
 
-export type ExamType = "AP" | "IB" | "A-Level";
+export type ExamType = "AP" | "IB" | "A-Level" | "FrenchBac";
 
 /** Every selectable test in the Testing step. SAT/ACT are scalar scores;
- *  AP/IB/A-Level (ExamType) are subject-list systems. */
-export type TestType = "SAT" | "ACT" | ExamType;
+ *  English is a grouped proficiency panel; AP/IB/A-Level/FrenchBac (ExamType)
+ *  are subject-list systems shown as tabs. */
+export type TestType = "SAT" | "ACT" | "English" | ExamType;
+
+/** One English-proficiency exam. */
+export type EnglishTest = "TOEFL" | "IELTS" | "PTE" | "Duolingo";
 
 /** One IB Diploma subject (6 subjects across HL/SL, each scored 1-7). */
 export interface IBEntry {
@@ -79,9 +83,47 @@ export interface ALevelEntry {
   board: string;
 }
 
+/** One French Baccalauréat épreuve, scored out of 20 with an exam status. */
+export interface FrenchBacScore {
+  score: number | null; // 0-20
+  status: string; // "" | "Predicted" | "Final"
+}
+
+/** A selectable French Bac specialty (spécialité) subject. */
+export interface FrenchBacSpecialty {
+  subject: string;
+  score: number | null; // 0-20
+  status: string;
+}
+
+/** French Baccalauréat: fixed core épreuves + two specialty subjects. */
+export interface FrenchBac {
+  fw: FrenchBacScore; // Français - Written (écrit)
+  fo: FrenchBacScore; // Français - Oral
+  philo: FrenchBacScore; // Philosophie
+  grandOral: FrenchBacScore; // Grand Oral
+  specialties: FrenchBacSpecialty[]; // typically 2
+}
+
+/** Sub-skill scores for an English-proficiency test (not all tests use all). */
+export interface EnglishSubScores {
+  reading: number | null;
+  listening: number | null;
+  writing: number | null;
+  speaking: number | null;
+  overall: number | null;
+}
+
+/** English proficiency: one active test, but each test's scores persist so
+ *  switching between them never loses data. */
+export interface EnglishProficiency {
+  test: EnglishTest | "";
+  scores: Record<EnglishTest, EnglishSubScores>;
+}
+
 export interface Testing {
-  /** Which tests the student reports (SAT/ACT/AP/IB/A-Level). Multi-select;
-   *  a test's data is retained even if it's later deselected. */
+  /** Which tests the student reports. Multi-select; a test's data is retained
+   *  even if it's later deselected. */
   tests: TestType[];
   sat: number | null;
   act: number | null;
@@ -89,6 +131,8 @@ export interface Testing {
   ib: IBEntry[];
   ibCore: IBCore;
   aLevel: ALevelEntry[];
+  frenchBac: FrenchBac;
+  english: EnglishProficiency;
   noTestsYet: boolean;
 }
 

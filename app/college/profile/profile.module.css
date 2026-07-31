@@ -326,6 +326,85 @@
   padding: 1.1rem;
 }
 
+/* French Baccalauréat table (subject | score /20 | status) */
+.fbacGroupLabel {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 0.5rem;
+}
+.fbacTable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.fbacHead,
+.fbacRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(90px, 0.8fr) minmax(120px, 0.9fr);
+  gap: 0.6rem;
+  align-items: center;
+}
+.fbacHead {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 0 0.1rem 0.1rem;
+}
+.fbacSubject {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* English proficiency panel */
+.englishPanel {
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.englishChooser {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.englishTab {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.englishTab:hover { border-color: var(--marigold); color: var(--ink); }
+.englishTab[data-active="true"] {
+  color: #fff;
+  background: var(--ivy);
+  border-color: var(--ivy);
+}
+.englishGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.7rem;
+}
+
 /* IB core components block */
 .ibCore {
   border: 1px solid var(--hairline);
