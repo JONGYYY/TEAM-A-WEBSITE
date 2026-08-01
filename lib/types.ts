@@ -83,6 +83,9 @@ export interface ALevelEntry {
   board: string;
 }
 
+/** Which French diploma track the student is on. BFI adds 3 extra components. */
+export type FrenchDiploma = "BAC" | "BFI";
+
 /** One French Baccalauréat épreuve, scored out of 20 with an exam status. */
 export interface FrenchBacScore {
   score: number | null; // 0-20
@@ -96,13 +99,36 @@ export interface FrenchBacSpecialty {
   status: string;
 }
 
-/** French Baccalauréat: fixed core épreuves + two specialty subjects. */
+/** French Bac core (tronc commun) — the 9 common subjects. Français is reported
+ *  as two rows (written + oral) and Grand Oral is a separate final épreuve. */
+export interface FrenchBacCore {
+  francaisWritten: FrenchBacScore;
+  francaisOral: FrenchBacScore;
+  english: FrenchBacScore; // LVA
+  thirdLanguage: FrenchBacScore; // LVB
+  thirdLanguageName: string; // e.g. "Spanish"
+  mathematics: FrenchBacScore;
+  sciences: FrenchBacScore;
+  historyGeography: FrenchBacScore;
+  philosophie: FrenchBacScore;
+  moralCivic: FrenchBacScore;
+  physicalEducation: FrenchBacScore;
+  grandOral: FrenchBacScore;
+}
+
+/** BFI-only additional components (Baccalauréat Français International). */
+export interface FrenchBacBFI {
+  advancedHistory: FrenchBacScore;
+  advancedEnglish: FrenchBacScore;
+  contemporary: FrenchBacScore;
+}
+
+/** French Baccalauréat: diploma track + fixed core + 3 specialties (+ BFI extras). */
 export interface FrenchBac {
-  fw: FrenchBacScore; // Français - Written (écrit)
-  fo: FrenchBacScore; // Français - Oral
-  philo: FrenchBacScore; // Philosophie
-  grandOral: FrenchBacScore; // Grand Oral
-  specialties: FrenchBacSpecialty[]; // typically 2
+  diploma: FrenchDiploma;
+  core: FrenchBacCore;
+  specialties: FrenchBacSpecialty[]; // 3
+  bfi: FrenchBacBFI; // only meaningful when diploma === "BFI"
 }
 
 /** Sub-skill scores for an English-proficiency test (not all tests use all). */

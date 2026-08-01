@@ -17,7 +17,14 @@ export function generateAssessment(p: StudentProfile): AssessmentReport {
 
   // French Bac average (out of 20), if the student reports it.
   const fb = p.testing.frenchBac;
-  const fbScores = [fb.fw, fb.fo, fb.philo, fb.grandOral, ...fb.specialties].map((r) => r.score).filter((v): v is number => v != null);
+  const fbC = fb.core;
+  const fbRows = [
+    fbC.francaisWritten, fbC.francaisOral, fbC.english, fbC.thirdLanguage, fbC.mathematics, fbC.sciences,
+    fbC.historyGeography, fbC.philosophie, fbC.moralCivic, fbC.physicalEducation, fbC.grandOral,
+    ...fb.specialties,
+    ...(fb.diploma === "BFI" ? [fb.bfi.advancedHistory, fb.bfi.advancedEnglish, fb.bfi.contemporary] : []),
+  ];
+  const fbScores = fbRows.map((r) => r.score).filter((v): v is number => v != null);
   const fbAvg = fbScores.length ? fbScores.reduce((a, b) => a + b, 0) / fbScores.length : 0;
 
   // --- scores ---

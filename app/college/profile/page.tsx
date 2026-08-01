@@ -18,9 +18,9 @@ import {
   NO_PREF, togglePref, searchStates,
   EXAM_TYPES, TEST_TYPES, IB_SUBJECTS, IB_LEVELS, IB_STATUSES, IB_CORE_GRADES, IB_CORE_STATUSES, IB_CAS_STATUSES,
   A_LEVEL_CATEGORIES, A_LEVEL_SUBJECTS, A_LEVEL_LEVELS, A_LEVEL_GRADES, A_LEVEL_STATUSES, EXAM_BOARDS,
-  FRENCH_BAC_SPECIALTIES, FRENCH_BAC_STATUSES, frenchBacMention, ENGLISH_TESTS,
+  FRENCH_BAC_SPECIALTIES, FRENCH_BAC_STATUSES, FRENCH_BAC_THIRD_LANGUAGES, FRENCH_DIPLOMAS, frenchBacMention, ENGLISH_TESTS,
 } from "@/lib/taxonomy";
-import type { StudentProfile, Award, Activity, APEntry, IBEntry, ALevelEntry, IBCore, ExamType, TestType, FrenchBacScore, FrenchBacSpecialty, EnglishTest, EnglishSubScores } from "@/lib/types";
+import type { StudentProfile, Award, Activity, APEntry, IBEntry, ALevelEntry, IBCore, ExamType, TestType, FrenchBacScore, FrenchBacSpecialty, FrenchBacCore, FrenchBacBFI, FrenchDiploma, EnglishTest, EnglishSubScores } from "@/lib/types";
 import s from "./profile.module.css";
 
 const STEPS = [
@@ -68,6 +68,30 @@ const AP_MATCH_OPTIONS = (query: string, taken: string[]): ComboOption[] =>
 const emptyApRow = (): APEntry => ({ subject: "", score: null });
 const emptyIbRow = (): IBEntry => ({ subject: "", level: "", score: null, status: "" });
 const emptyALevelRow = (): ALevelEntry => ({ category: "", subject: "", level: "", grade: "", status: "", board: "" });
+
+/** Score-bearing keys on the French Bac core, in display order. */
+type FbCoreKey = Exclude<keyof FrenchBacCore, "thirdLanguageName">;
+/** The fixed French Bac core rows (label + which core field they write to). */
+const FB_CORE_ROWS: { key: FbCoreKey; label: string }[] = [
+  { key: "francaisWritten", label: "Français – Written" },
+  { key: "francaisOral", label: "Français – Oral" },
+  { key: "english", label: "English" },
+  { key: "thirdLanguage", label: "Third Language" },
+  { key: "mathematics", label: "Mathematics" },
+  { key: "sciences", label: "Sciences" },
+  { key: "historyGeography", label: "History & Geography" },
+  { key: "philosophie", label: "Philosophie" },
+  { key: "moralCivic", label: "Moral & Civic Education" },
+  { key: "physicalEducation", label: "Physical Education" },
+  { key: "grandOral", label: "Grand Oral" },
+];
+const FB_CORE_KEYS: FbCoreKey[] = FB_CORE_ROWS.map((r) => r.key);
+/** BFI-only additional components (label + field). */
+const FB_BFI_ROWS: { key: keyof FrenchBacBFI; label: string }[] = [
+  { key: "advancedHistory", label: "Advanced History" },
+  { key: "advancedEnglish", label: "Advanced English Studies" },
+  { key: "contemporary", label: "Contemporary Studies" },
+];
 
 /** Partial profile returned by /api/extract-profile (all fields optional). */
 type ResumePartial = {
@@ -493,11 +517,14 @@ function StepTesting({ profile, setProfile }: StepProps) {
     if (id === "AP" || id === "IB" || id === "A-Level" || id === "FrenchBac") setActiveTab(id);
   }
 
+  const fb = t.frenchBac;
+  const fbBfiRows = fb.diploma === "BFI" ? FB_BFI_ROWS.map((r) => fb.bfi[r.key]) : [];
   const hasAnyTest =
     t.sat != null || t.act != null ||
     t.ap.some((a) => a.subject) || t.ib.some((a) => a.subject) || t.aLevel.some((a) => a.subject) ||
-    [t.frenchBac.fw, t.frenchBac.fo, t.frenchBac.philo, t.frenchBac.grandOral].some((r) => r.score != null) ||
-    t.frenchBac.specialties.some((sp) => sp.subject) ||
+    FB_CORE_KEYS.some((k) => fb.core[k].score != null) ||
+    fb.specialties.some((sp) => sp.subject || sp.score != null) ||
+    fbBfiRows.some((r) => r.score != null) ||
     (t.english.test !== "" && t.english.scores[t.english.test].overall != null);
   const testingInvalid = highlight && !t.noTestsYet && !hasAnyTest;
 
@@ -505,8 +532,9 @@ function StepTesting({ profile, setProfile }: StepProps) {
   const ibCount = t.ib.filter((a) => a.subject).length;
   const alCount = t.aLevel.filter((a) => a.subject).length;
   const fbCount =
-    [t.frenchBac.fw, t.frenchBac.fo, t.frenchBac.philo, t.frenchBac.grandOral].filter((r) => r.score != null).length +
-    t.frenchBac.specialties.filter((sp) => sp.subject).length;
+    FB_CORE_KEYS.filter((k) => fb.core[k].score != null).length +
+    fb.specialties.filter((sp) => sp.subject).length +
+    fbBfiRows.filter((r) => r.score != null).length;
   const tabCount = (id: ExamType) => (id === "AP" ? apCount : id === "IB" ? ibCount : id === "A-Level" ? alCount : fbCount);
 
   // Selected subject systems, in canonical order, and the tab that's actually shown.
@@ -567,8 +595,17 @@ function StepTesting({ profile, setProfile }: StepProps) {
   }
 
   /* ---- French Baccalauréat ---- */
-  function setFbac(part: "fw" | "fo" | "philo" | "grandOral", patch: Partial<FrenchBacScore>) {
-    setProfile((p) => ({ ...p, testing: { ...p.testing, frenchBac: { ...p.testing.frenchBac, [part]: { ...p.testing.frenchBac[part], ...patch } } } }));
+  function setFbacDiploma(diploma: FrenchDiploma) {
+    setProfile((p) => ({ ...p, testing: { ...p.testing, frenchBac: { ...p.testing.frenchBac, diploma } } }));
+  }
+  function setFbacCore(key: FbCoreKey, patch: Partial<FrenchBacScore>) {
+    setProfile((p) => ({ ...p, testing: { ...p.testing, frenchBac: { ...p.testing.frenchBac, core: { ...p.testing.frenchBac.core, [key]: { ...p.testing.frenchBac.core[key], ...patch } } } } }));
+  }
+  function setFbacThirdLanguage(name: string) {
+    setProfile((p) => ({ ...p, testing: { ...p.testing, frenchBac: { ...p.testing.frenchBac, core: { ...p.testing.frenchBac.core, thirdLanguageName: name } } } }));
+  }
+  function setFbacBfi(key: keyof FrenchBacBFI, patch: Partial<FrenchBacScore>) {
+    setProfile((p) => ({ ...p, testing: { ...p.testing, frenchBac: { ...p.testing.frenchBac, bfi: { ...p.testing.frenchBac.bfi, [key]: { ...p.testing.frenchBac.bfi[key], ...patch } } } } }));
   }
   function setFbacSpecialty(idx: number, patch: Partial<FrenchBacSpecialty>) {
     setProfile((p) => {
@@ -576,7 +613,23 @@ function StepTesting({ profile, setProfile }: StepProps) {
       return { ...p, testing: { ...p.testing, frenchBac: { ...p.testing.frenchBac, specialties } } };
     });
   }
-  const fbFilled = [t.frenchBac.fw, t.frenchBac.fo, t.frenchBac.philo, t.frenchBac.grandOral, ...t.frenchBac.specialties]
+  // Status <select> that defaults to a greyed "Select status" placeholder.
+  const fbacStatus = (value: string, onChange: (v: string) => void) => (
+    <select
+      className="select"
+      style={value === "" ? { color: "var(--ink-faint)" } : undefined}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">Select status</option>
+      {FRENCH_BAC_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+  const fbFilled = [
+    ...FB_CORE_KEYS.map((k) => fb.core[k]),
+    ...fb.specialties,
+    ...fbBfiRows,
+  ]
     .map((r) => r.score)
     .filter((v): v is number => v != null);
   const fbAvg = fbFilled.length ? fbFilled.reduce((a, b) => a + b, 0) / fbFilled.length : null;
@@ -603,23 +656,21 @@ function StepTesting({ profile, setProfile }: StepProps) {
         <>
           <div className={s.subhead} style={{ marginTop: 0 }}>Which tests do you have?</div>
           <p className="field-hint" style={{ marginBottom: "0.8rem" }}>Select every test you&apos;ve taken or plan to report — you&apos;ll only see the ones you pick. Add as many as you like; anything you enter stays saved even if you unselect a test.</p>
-          <div className={s.examPick} role="group" aria-label="Tests">
+          <div className={s.testPick} role="group" aria-label="Tests">
             {TEST_TYPES.map((tt) => {
               const selected = has(tt.id);
               return (
                 <button
                   key={tt.id}
                   type="button"
-                  className={s.examChip}
+                  className={s.testPill}
                   data-selected={selected}
                   aria-pressed={selected}
+                  title={tt.blurb}
                   onClick={() => toggleTest(tt.id)}
                 >
-                  <span className={s.examChipMark}>{selected && <Icon name="check" size={12} />}</span>
-                  <span className={s.examChipText}>
-                    <span className={s.examChipLabel}>{tt.label}</span>
-                    <span className={s.examChipBlurb}>{tt.blurb}</span>
-                  </span>
+                  {selected && <Icon name="check" size={13} />}
+                  {tt.label}
                 </button>
               );
             })}
@@ -876,53 +927,112 @@ function StepTesting({ profile, setProfile }: StepProps) {
 
                 {effectiveTab === "FrenchBac" && (
                   <>
-                    <div className={s.fbacGroupLabel}>Core épreuves</div>
+                    <p className="field-hint" style={{ marginTop: 0 }}>Enter your subject scores (out of 20) and status. Supports both BAC and BFI.</p>
+
+                    {/* Diploma type — pill buttons, not a dropdown */}
+                    <div className={s.fbacDiplomaLabel}>Diploma type</div>
+                    <div className={s.fbacDiploma} role="group" aria-label="Diploma type">
+                      {FRENCH_DIPLOMAS.map((d) => {
+                        const active = fb.diploma === d.id;
+                        return (
+                          <button
+                            key={d.id}
+                            type="button"
+                            className={s.fbacDiplomaPill}
+                            data-active={active}
+                            aria-pressed={active}
+                            onClick={() => setFbacDiploma(d.id)}
+                          >
+                            {d.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className={s.fbacGroupLabel}>Core subjects</div>
                     <div className={s.fbacTable}>
                       <div className={s.fbacHead}>
                         <span>Subject</span>
-                        <span>Score /20</span>
+                        <span>Score (/20)</span>
                         <span>Status</span>
                       </div>
-                      {([
-                        ["fw", "Français — Written"],
-                        ["fo", "Français — Oral"],
-                        ["philo", "Philosophie"],
-                        ["grandOral", "Grand Oral"],
-                      ] as const).map(([key, label]) => (
+                      {FB_CORE_ROWS.map(({ key, label }) => (
                         <div key={key} className={s.fbacRow}>
-                          <span className={s.fbacSubject}>{label}</span>
-                          <NumberInput value={t.frenchBac[key].score} onChange={(v) => setFbac(key, { score: v })} placeholder="0–20" min={0} max={20} step={0.1} />
-                          <select className="select" value={t.frenchBac[key].status} onChange={(e) => setFbac(key, { status: e.target.value })}>
-                            <option value="">Status</option>
-                            {FRENCH_BAC_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
-                          </select>
+                          {key === "thirdLanguage" ? (
+                            <span className={s.fbacSubject}>
+                              {label}
+                              <select
+                                className="select"
+                                style={{ marginTop: 6, ...(fb.core.thirdLanguageName === "" ? { color: "var(--ink-faint)" } : {}) }}
+                                value={fb.core.thirdLanguageName}
+                                onChange={(e) => setFbacThirdLanguage(e.target.value)}
+                              >
+                                <option value="">Select language</option>
+                                {FRENCH_BAC_THIRD_LANGUAGES.map((o) => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            </span>
+                          ) : (
+                            <span className={s.fbacSubject}>{label}</span>
+                          )}
+                          <NumberInput value={fb.core[key].score} onChange={(v) => setFbacCore(key, { score: v })} placeholder="Enter your score" min={0} max={20} step={0.1} />
+                          {fbacStatus(fb.core[key].status, (v) => setFbacCore(key, { status: v }))}
                         </div>
                       ))}
                     </div>
 
-                    <div className={s.fbacGroupLabel} style={{ marginTop: "1rem" }}>Specialty subjects (spécialités)</div>
+                    <div className={s.fbacGroupLabel} style={{ marginTop: "1.1rem" }}>Specialty subjects</div>
                     <div className={s.fbacTable}>
                       <div className={s.fbacHead}>
                         <span>Subject</span>
-                        <span>Score /20</span>
+                        <span>Score (/20)</span>
                         <span>Status</span>
                       </div>
-                      {t.frenchBac.specialties.map((sp, i) => (
-                        <div key={i} className={s.fbacRow}>
-                          <select className="select" value={sp.subject} onChange={(e) => setFbacSpecialty(i, { subject: e.target.value })}>
-                            <option value="">— Select specialty —</option>
-                            {FRENCH_BAC_SPECIALTIES.map((o) => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                          <NumberInput value={sp.score} onChange={(v) => setFbacSpecialty(i, { score: v })} placeholder="0–20" min={0} max={20} step={0.1} />
-                          <select className="select" value={sp.status} onChange={(e) => setFbacSpecialty(i, { status: e.target.value })}>
-                            <option value="">Status</option>
-                            {FRENCH_BAC_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                      ))}
+                      {fb.specialties.map((sp, i) => {
+                        const taken = fb.specialties.map((x) => x.subject).filter((x, j) => x && j !== i);
+                        return (
+                          <div key={i} className={s.fbacRow}>
+                            <select
+                              className="select"
+                              style={sp.subject === "" ? { color: "var(--ink-faint)" } : undefined}
+                              value={sp.subject}
+                              onChange={(e) => setFbacSpecialty(i, { subject: e.target.value })}
+                            >
+                              <option value="">Select Specialty</option>
+                              {FRENCH_BAC_SPECIALTIES.filter((o) => !taken.includes(o)).map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                            <NumberInput value={sp.score} onChange={(v) => setFbacSpecialty(i, { score: v })} placeholder="Enter your score" min={0} max={20} step={0.1} />
+                            {fbacStatus(sp.status, (v) => setFbacSpecialty(i, { status: v }))}
+                          </div>
+                        );
+                      })}
                     </div>
+                    <p className="field-hint">Select 3 specialties. Later, indicate which 2 continue into the final year.</p>
+
+                    {fb.diploma === "BFI" && (
+                      <>
+                        <div className={s.fbacGroupLabel} style={{ marginTop: "1.1rem" }}>
+                          BFI additional components
+                          <span className={s.fbacBadge}>Shown when BFI is selected</span>
+                        </div>
+                        <div className={s.fbacTable}>
+                          <div className={s.fbacHead}>
+                            <span>Subject</span>
+                            <span>Score (/20)</span>
+                            <span>Status</span>
+                          </div>
+                          {FB_BFI_ROWS.map(({ key, label }) => (
+                            <div key={key} className={s.fbacRow}>
+                              <span className={s.fbacSubject}>{label}</span>
+                              <NumberInput value={fb.bfi[key].score} onChange={(v) => setFbacBfi(key, { score: v })} placeholder="Enter your score" min={0} max={20} step={0.1} />
+                              {fbacStatus(fb.bfi[key].status, (v) => setFbacBfi(key, { status: v }))}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
                     <p className="field-hint">
-                      Scored out of 20 (French system). Core subjects are fixed; pick your two spécialités.
+                      Scored out of 20 (French system).
                       {fbAvg != null && ` Current average: ${fbAvg.toFixed(1)}/20${frenchBacMention(fbAvg) ? ` — ${frenchBacMention(fbAvg)}` : ""}.`}
                     </p>
                   </>
@@ -1214,10 +1324,17 @@ function testingSummary(t: StudentProfile["testing"]): string {
     if (n) parts.push(`${n} A-Level`);
   }
   if (t.tests.includes("FrenchBac")) {
-    const filled = [t.frenchBac.fw, t.frenchBac.fo, t.frenchBac.philo, t.frenchBac.grandOral, ...t.frenchBac.specialties]
-      .map((r) => r.score)
-      .filter((v): v is number => v != null);
-    if (filled.length) parts.push(`Bac ${(filled.reduce((a, b) => a + b, 0) / filled.length).toFixed(1)}/20`);
+    const fbc = t.frenchBac;
+    const rows = [
+      fbc.core.francaisWritten, fbc.core.francaisOral, fbc.core.english, fbc.core.thirdLanguage,
+      fbc.core.mathematics, fbc.core.sciences, fbc.core.historyGeography, fbc.core.philosophie,
+      fbc.core.moralCivic, fbc.core.physicalEducation, fbc.core.grandOral,
+      ...fbc.specialties,
+      ...(fbc.diploma === "BFI" ? [fbc.bfi.advancedHistory, fbc.bfi.advancedEnglish, fbc.bfi.contemporary] : []),
+    ];
+    const filled = rows.map((r) => r.score).filter((v): v is number => v != null);
+    const tag = fbc.diploma === "BFI" ? "BFI" : "BAC";
+    if (filled.length) parts.push(`${tag} ${(filled.reduce((a, b) => a + b, 0) / filled.length).toFixed(1)}/20`);
   }
   if (t.tests.includes("English") && t.english.test) {
     const ov = t.english.scores[t.english.test].overall;

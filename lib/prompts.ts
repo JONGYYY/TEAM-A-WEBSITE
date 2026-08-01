@@ -220,8 +220,15 @@ export function buildEvalUser(profile: StudentProfile) {
     aLevelCount: profile.testing.aLevel.filter((a) => a.subject).length,
     frenchBac: (() => {
       const fb = profile.testing.frenchBac;
-      const scores = [fb.fw, fb.fo, fb.philo, fb.grandOral, ...fb.specialties].map((r) => r.score).filter((v): v is number => v != null);
-      return scores.length ? { avg: Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10, outOf: 20 } : null;
+      const c = fb.core;
+      const rows = [
+        c.francaisWritten, c.francaisOral, c.english, c.thirdLanguage, c.mathematics, c.sciences,
+        c.historyGeography, c.philosophie, c.moralCivic, c.physicalEducation, c.grandOral,
+        ...fb.specialties,
+        ...(fb.diploma === "BFI" ? [fb.bfi.advancedHistory, fb.bfi.advancedEnglish, fb.bfi.contemporary] : []),
+      ];
+      const scores = rows.map((r) => r.score).filter((v): v is number => v != null);
+      return scores.length ? { diploma: fb.diploma, avg: Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10, outOf: 20 } : null;
     })(),
     english: profile.testing.english.test
       ? { test: profile.testing.english.test, overall: profile.testing.english.scores[profile.testing.english.test].overall }

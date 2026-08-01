@@ -181,52 +181,36 @@
 }
 .removeBtn:hover { color: var(--clay); border-color: var(--clay); }
 
-/* Test multi-select (SAT / ACT / AP / IB / A-Level) — selectable cards */
-.examPick {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
-  gap: 0.6rem;
+/* Test multi-select (SAT / ACT / English / AP / IB / A-Level / French Bac) — pills */
+.testPick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
-.examChip {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  text-align: left;
-  padding: 0.75rem 0.9rem;
+.testPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
   border: 1px solid var(--hairline-strong);
-  border-radius: var(--r-md);
+  border-radius: 999px;
   background: var(--paper);
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease-out),
+  transition: color var(--dur-fast) var(--ease-out),
     background var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+    border-color var(--dur-fast) var(--ease-out);
 }
-.examChip:hover { border-color: var(--marigold); }
-.examChip[data-selected="true"] {
-  border-color: var(--ivy);
-  background: color-mix(in srgb, var(--ivy) 8%, var(--paper));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ivy) 40%, transparent);
-}
-.examChipMark {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  margin-top: 1px;
-  border-radius: 6px;
-  border: 1.5px solid var(--hairline-strong);
-  background: var(--paper-sunk);
+.testPill:hover { border-color: var(--marigold); color: var(--ink); }
+.testPill[data-selected="true"] {
   color: #fff;
-}
-.examChip[data-selected="true"] .examChipMark {
   background: var(--ivy);
   border-color: var(--ivy);
 }
-.examChipText { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
-.examChipLabel { font-weight: 600; color: var(--ink); font-size: 0.92rem; }
-.examChipBlurb { font-size: 0.75rem; color: var(--ink-faint); line-height: 1.3; }
 
 /* SAT / ACT — compact inline score cards */
 .scoreRow {
@@ -358,9 +342,62 @@
   padding: 0 0.1rem 0.1rem;
 }
 .fbacSubject {
+  display: flex;
+  flex-direction: column;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--ink);
+}
+
+/* French Bac diploma type — pill toggle (BAC / BFI), not a dropdown */
+.fbacDiplomaLabel {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 0.5rem;
+}
+.fbacDiploma {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+}
+.fbacDiplomaPill {
+  padding: 0.55rem 1.05rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.fbacDiplomaPill:hover { border-color: var(--marigold); color: var(--ink); }
+.fbacDiplomaPill[data-active="true"] {
+  color: #fff;
+  background: var(--ivy);
+  border-color: var(--ivy);
+}
+.fbacBadge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ivy) 14%, var(--paper-sunk));
+  color: var(--ivy);
+  font-family: var(--font-ui);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  vertical-align: middle;
 }
 
 /* English proficiency panel */

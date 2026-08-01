@@ -187,23 +187,34 @@ export const TEST_TYPES: { id: TestType; label: string; blurb: string; kind: "sc
 
 /** French Baccalauréat specialty (spécialité) subjects a student may select. */
 export const FRENCH_BAC_SPECIALTIES = [
-  "Philosophie",
-  "Histoire-Géographie",
-  "Langue Vivante A (Anglais)",
-  "Langue Vivante A (Autre)",
-  "Langue Vivante B",
-  "Mathématiques",
-  "Physique-Chimie",
-  "SVT (Sciences de la Vie et de la Terre)",
-  "SES (Sciences Économiques et Sociales)",
-  "HGGSP (Histoire-Géographie, Géopolitique et Sciences Politiques)",
-  "NSI (Numérique et Sciences Informatiques)",
-  "LLCER (Langues, Littératures et Cultures Étrangères)",
-  "HLP (Humanités, Littérature et Philosophie)",
-  "SI (Sciences de l'Ingénieur)",
+  "Mathematics",
+  "Geopolitics & Political Science",
+  "Biology",
+  "Chemistry & Physics",
+  "English Literature",
+  "Digital & Computer Sciences",
+  "Humanities, Literature & Philosophy",
+  "Economics & Sociology",
   "Arts",
-  "Éducation Physique et Sportive (EPS)",
 ];
+
+/** Third-language (LVB) options for the French Bac core. */
+export const FRENCH_BAC_THIRD_LANGUAGES = [
+  "Spanish",
+  "German",
+  "Chinese",
+  "Italian",
+  "Arabic",
+  "Russian",
+  "Portuguese",
+];
+
+/** French Bac diploma tracks. BFI adds 3 extra components; BAC does not. */
+export const FRENCH_DIPLOMAS: { id: "BAC" | "BFI"; label: string }[] = [
+  { id: "BAC", label: "French Baccalauréat (BAC)" },
+  { id: "BFI", label: "BFI — Baccalauréat Français International" },
+];
+
 export const FRENCH_BAC_STATUSES = ["Predicted", "Final"];
 
 /** Mention (French Bac honors) from an overall /20 average. */
@@ -307,14 +318,31 @@ export const EXAM_BOARDS = ["AQA", "Edexcel (Pearson)", "OCR", "Cambridge (CIE)"
 export function emptyFrenchBac(): StudentProfile["testing"]["frenchBac"] {
   const blank = () => ({ score: null, status: "" });
   return {
-    fw: blank(),
-    fo: blank(),
-    philo: blank(),
-    grandOral: blank(),
+    diploma: "BAC",
+    core: {
+      francaisWritten: blank(),
+      francaisOral: blank(),
+      english: blank(),
+      thirdLanguage: blank(),
+      thirdLanguageName: "",
+      mathematics: blank(),
+      sciences: blank(),
+      historyGeography: blank(),
+      philosophie: blank(),
+      moralCivic: blank(),
+      physicalEducation: blank(),
+      grandOral: blank(),
+    },
     specialties: [
       { subject: "", score: null, status: "" },
       { subject: "", score: null, status: "" },
+      { subject: "", score: null, status: "" },
     ],
+    bfi: {
+      advancedHistory: blank(),
+      advancedEnglish: blank(),
+      contemporary: blank(),
+    },
   };
 }
 
@@ -363,6 +391,8 @@ export function normalizeProfile(raw: unknown): StudentProfile {
   const core = (t.ibCore || {}) as Partial<StudentProfile["testing"]["ibCore"]>;
   const fbBase = emptyFrenchBac();
   const fb = (t.frenchBac || {}) as Partial<StudentProfile["testing"]["frenchBac"]>;
+  const fbCore = (fb.core || {}) as Partial<StudentProfile["testing"]["frenchBac"]["core"]>;
+  const fbBfi = (fb.bfi || {}) as Partial<StudentProfile["testing"]["frenchBac"]["bfi"]>;
   const engBase = emptyEnglish();
   const eng = (t.english || {}) as Partial<StudentProfile["testing"]["english"]>;
   const engScores = (eng.scores || {}) as Partial<StudentProfile["testing"]["english"]["scores"]>;
@@ -405,11 +435,28 @@ export function normalizeProfile(raw: unknown): StudentProfile {
         cas: { ...base.testing.ibCore.cas, ...(core.cas || {}) },
       },
       frenchBac: {
-        fw: { ...fbBase.fw, ...(fb.fw || {}) },
-        fo: { ...fbBase.fo, ...(fb.fo || {}) },
-        philo: { ...fbBase.philo, ...(fb.philo || {}) },
-        grandOral: { ...fbBase.grandOral, ...(fb.grandOral || {}) },
-        specialties: Array.isArray(fb.specialties) && fb.specialties.length ? fb.specialties : fbBase.specialties,
+        diploma: fb.diploma === "BFI" ? "BFI" : "BAC",
+        core: {
+          francaisWritten: { ...fbBase.core.francaisWritten, ...(fbCore.francaisWritten || {}) },
+          francaisOral: { ...fbBase.core.francaisOral, ...(fbCore.francaisOral || {}) },
+          english: { ...fbBase.core.english, ...(fbCore.english || {}) },
+          thirdLanguage: { ...fbBase.core.thirdLanguage, ...(fbCore.thirdLanguage || {}) },
+          thirdLanguageName: typeof fbCore.thirdLanguageName === "string" ? fbCore.thirdLanguageName : "",
+          mathematics: { ...fbBase.core.mathematics, ...(fbCore.mathematics || {}) },
+          sciences: { ...fbBase.core.sciences, ...(fbCore.sciences || {}) },
+          historyGeography: { ...fbBase.core.historyGeography, ...(fbCore.historyGeography || {}) },
+          philosophie: { ...fbBase.core.philosophie, ...(fbCore.philosophie || {}) },
+          moralCivic: { ...fbBase.core.moralCivic, ...(fbCore.moralCivic || {}) },
+          physicalEducation: { ...fbBase.core.physicalEducation, ...(fbCore.physicalEducation || {}) },
+          grandOral: { ...fbBase.core.grandOral, ...(fbCore.grandOral || {}) },
+        },
+        specialties:
+          Array.isArray(fb.specialties) && fb.specialties.length ? fb.specialties : fbBase.specialties,
+        bfi: {
+          advancedHistory: { ...fbBase.bfi.advancedHistory, ...(fbBfi.advancedHistory || {}) },
+          advancedEnglish: { ...fbBase.bfi.advancedEnglish, ...(fbBfi.advancedEnglish || {}) },
+          contemporary: { ...fbBase.bfi.contemporary, ...(fbBfi.contemporary || {}) },
+        },
       },
       english: {
         test: eng.test === "TOEFL" || eng.test === "IELTS" || eng.test === "PTE" || eng.test === "Duolingo" ? eng.test : "",
