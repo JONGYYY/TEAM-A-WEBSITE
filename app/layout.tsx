@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { fraunces, hanken, splineMono } from "./fonts";
+import { poppins } from "./fonts";
 import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider } from "@/lib/auth";
 import { StoreProvider } from "@/lib/store";
@@ -46,7 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: noFlash }} />
       </head>
-      <body className={`${fraunces.variable} ${hanken.variable} ${splineMono.variable}`}>
+      <body className={poppins.variable}>
         <ThemeProvider>
           <AuthProvider>
             <StoreProvider>

@@ -45,9 +45,10 @@
   --sidebar-w: 264px;
   --max-content: 1120px;
 
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
-  --font-ui: "Hanken Grotesk", system-ui, sans-serif;
-  --font-mono: "Spline Sans Mono", ui-monospace, monospace;
+  /* Poppins everywhere — display / ui / mono all resolve to the one typeface. */
+  --font-display: var(--font-poppins), system-ui, sans-serif;
+  --font-ui: var(--font-poppins), system-ui, sans-serif;
+  --font-mono: var(--font-poppins), ui-monospace, monospace;
 }
 
 [data-theme="dark"] {

@@ -1,20 +1,11 @@
-import { Fraunces, Hanken_Grotesk, Spline_Sans_Mono } from "next/font/google";
+import { Poppins } from "next/font/google";
 
-export const fraunces = Fraunces({
+// Site-wide typeface. Poppins doesn't have a variable axis, so load the weights
+// the design uses (light → extra-bold). Exposed as --font-poppins and mapped to
+// every role (display / ui / mono) in globals.css.
+export const poppins = Poppins({
   subsets: ["latin"],
   display: "swap",
-  axes: ["opsz", "SOFT", "WONK"],
-  variable: "--font-display",
-});
-
-export const hanken = Hanken_Grotesk({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-ui",
-});
-
-export const splineMono = Spline_Sans_Mono({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-mono",
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-poppins",
 });
