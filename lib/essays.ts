@@ -127,7 +127,7 @@ export async function createEssay(input: {
   promptSnapshot: EssayPromptSnapshot;
   promptId?: string;
   parts: EssayPart[];
-}): Promise<Essay | undefined> {
+}): Promise<{ essay?: Essay; error?: string }> {
   const now = new Date().toISOString();
   const row = {
     id: uid("essay"),
@@ -143,10 +143,22 @@ export async function createEssay(input: {
     created_at: now,
     updated_at: now,
   };
-  const { data, error } = await supabase.from("essays").insert(row).select("*").maybeSingle();
-  if (error || !data) return undefined;
+
+  let { data, error } = await supabase.from("essays").insert(row).select("*").maybeSingle();
+
+  // If the prompt_id foreign key isn't satisfied (the sourced prompt wasn't
+  // cached yet), the snapshot already holds everything — retry without it.
+  if (error && (error.code === "23503" || /foreign key/i.test(error.message))) {
+    ({ data, error } = await supabase.from("essays").insert({ ...row, prompt_id: null }).select("*").maybeSingle());
+  }
+
+  if (error || !data) {
+    // eslint-disable-next-line no-console
+    console.error("createEssay failed:", error);
+    return { error: error?.message || "Could not create the essay." };
+  }
   notifyEssayChange();
-  return toEssay(data);
+  return { essay: toEssay(data) };
 }
 
 export async function saveEssay(e: Essay): Promise<void> {

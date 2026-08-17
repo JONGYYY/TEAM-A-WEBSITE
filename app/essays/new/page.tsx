@@ -66,6 +66,7 @@ export default function NewEssay() {
   const [tab, setTab] = useState<Tab>("common");
   const [choice, setChoice] = useState<Choice | null>(null);
   const [creating, setCreating] = useState(false);
+  const [createErr, setCreateErr] = useState("");
 
   // College + major sourcing
   const cycles = recentCycles(4);
@@ -214,6 +215,7 @@ export default function NewEssay() {
     }
     if (!c) return;
     setCreating(true);
+    setCreateErr("");
     const snapshot: EssayPromptSnapshot = {
       promptId: c.promptId,
       college: c.college,
@@ -224,9 +226,17 @@ export default function NewEssay() {
       source: c.source,
     };
     const title = c.college ? `${c.college} essay` : "Personal statement";
-    const essay = await createEssay({ ownerEmail: email, title, promptSnapshot: snapshot, promptId: c.promptId, parts: defaultParts() });
-    if (essay) router.push(`/essays/${essay.id}`);
-    else setCreating(false);
+    const { essay, error } = await createEssay({ ownerEmail: email, title, promptSnapshot: snapshot, promptId: c.promptId, parts: defaultParts() });
+    if (essay) {
+      router.push(`/essays/${essay.id}`);
+      return;
+    }
+    setCreating(false);
+    setCreateErr(
+      /relation .* does not exist|schema cache|could not find the table/i.test(error || "")
+        ? "The essay tables aren't set up in Supabase yet. Run supabase/schema.sql in your project, then try again."
+        : error || "Could not create the essay. Please try again."
+    );
   }
 
   const canStart = tab === "custom" ? customText.trim().length >= 8 : !!choice;
@@ -377,6 +387,10 @@ export default function NewEssay() {
           </>
         )}
       </div>
+
+      {createErr && (
+        <div className={`${s.notice} ${s.noticeErr}`} style={{ marginTop: "1rem" }}><Icon name="warning" size={16} /><span>{createErr}</span></div>
+      )}
 
       <div className={s.footerBar}>
         <Link href="/essays" className="btn btn-ghost">Cancel</Link>
