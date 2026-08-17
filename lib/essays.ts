@@ -173,12 +173,14 @@ export async function deleteEssay(id: string): Promise<void> {
 
 /* --------------------------------- prompts --------------------------------- */
 
-/** Cached prompts for a college in a given cycle (dataset read). */
+/** Cached prompts for a college in a given cycle (dataset read).
+ *  College match is case-insensitive so "stanford university" still hits. */
 export async function getPrompts(college: string, year: string): Promise<EssayPrompt[]> {
+  const key = college.trim().replace(/[%_]/g, "");
   const { data, error } = await supabase
     .from("essay_prompts")
     .select("*")
-    .eq("college", college)
+    .ilike("college", key)
     .eq("year", year);
   if (error || !data) return [];
   return data.map(toPrompt);
@@ -198,7 +200,8 @@ export async function insertPrompts(prompts: EssayPrompt[]): Promise<void> {
     status: p.status,
     created_by: p.createdBy ?? null,
   }));
-  await supabase.from("essay_prompts").insert(rows);
+  const { error } = await supabase.from("essay_prompts").insert(rows);
+  if (error) console.warn("[essays] prompt cache write failed:", error.message);
 }
 
 export async function verifyPrompt(id: string): Promise<void> {
