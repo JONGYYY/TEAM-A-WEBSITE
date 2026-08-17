@@ -22,6 +22,10 @@ const STUDENT_NAV: NavSection[] = [
     items: [{ href: "/quizzes", icon: "book", name: "My Quizzes", exact: true }],
   },
   {
+    label: "Essays",
+    items: [{ href: "/essays", icon: "quote", name: "Essay Studio" }],
+  },
+  {
     label: "Career Planning",
     items: [
       { href: "/career/discovery", icon: "compass", name: "Career Discovery" },

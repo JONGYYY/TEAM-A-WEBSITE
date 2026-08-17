@@ -40,6 +40,8 @@ export function CommandPalette() {
     { id: "profile", label: "College Profile", hint: "Onboarding", icon: "user", keywords: "build onboarding", run: () => go("/college/profile") },
     { id: "assess", label: "Admissions Evaluation", hint: "Capstone", icon: "award", keywords: "report committee", run: () => go("/college/assessment") },
     { id: "position", label: "Positioning Statement", hint: "Your story", icon: "quote", keywords: "spike narrative", run: () => go("/college/positioning") },
+    { id: "essays", label: "Essay Studio", hint: "Write essays", icon: "quote", keywords: "essay writing common app supplemental draft", run: () => go("/essays") },
+    { id: "essaynew", label: "New Essay", hint: "Pick a prompt", icon: "spark", keywords: "essay start prompt", run: () => go("/essays/new") },
     { id: "majors", label: "Best-fit Majors", hint: "College", icon: "book", run: () => go("/college/majors") },
     { id: "colleges", label: "College List", hint: "Likely · Target · Reach", icon: "building", run: () => go("/college/colleges") },
     { id: "scholar", label: "Scholarships", hint: "College", icon: "coins", run: () => go("/college/scholarships") },

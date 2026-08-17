@@ -365,3 +365,110 @@ export interface Submission {
   submittedAt?: string;
   gradedAt?: string;
 }
+
+/* =========================================================================
+   AI Essay Tool
+   ========================================================================= */
+
+export type EssayPromptSource = "common_app" | "search" | "user";
+export type EssayPromptStatus = "verified" | "unverified";
+
+/** A prompt in the shared, growing dataset. */
+export interface EssayPrompt {
+  id: string;
+  college: string; // "" = Common App / generic
+  major: string | null; // null = whole-school prompt
+  year: string; // application cycle, e.g. "2026-2027"
+  promptText: string;
+  wordLimit: number | null;
+  source: EssayPromptSource;
+  sourceUrl?: string;
+  status: EssayPromptStatus;
+  createdBy?: string;
+  createdAt?: string;
+}
+
+/** The prompt details frozen onto an essay at creation, so later dataset edits
+ *  never change what the student was answering. */
+export interface EssayPromptSnapshot {
+  promptId?: string;
+  college: string;
+  major: string | null;
+  year: string;
+  promptText: string;
+  wordLimit: number | null;
+  source: EssayPromptSource;
+}
+
+/** One outline step the essay is broken into (Hook, Context, …). */
+export interface EssayPart {
+  id: string;
+  label: string;
+  hint: string;
+  done: boolean;
+}
+
+export type EssayStatus = "draft" | "in_progress" | "final";
+
+/** One category bar in the structured feedback (Aslo-style). */
+export interface EssayScoreCategory {
+  key: string;
+  label: string;
+  score: number; // 0-100
+  note: string;
+}
+
+export interface EssayScore {
+  overall: number; // 0-100
+  categories: EssayScoreCategory[];
+  strengths: string[];
+  improvements: string[];
+  gradedAt: string;
+}
+
+export interface Essay {
+  id: string;
+  ownerEmail: string;
+  promptId?: string;
+  promptSnapshot: EssayPromptSnapshot;
+  title: string;
+  content: unknown; // Tiptap document JSON
+  parts: EssayPart[];
+  wordCount: number;
+  score?: EssayScore | null;
+  status: EssayStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EssayCommentKind = "comment" | "ai_feedback";
+
+/** A line-anchored note. Never deleted — only toggled resolved. */
+export interface EssayComment {
+  id: string;
+  essayId: string;
+  author: string; // email or "ai"
+  kind: EssayCommentKind;
+  quotedText: string; // for re-anchoring after edits
+  rangeFrom: number | null;
+  rangeTo: number | null;
+  body: string;
+  resolved: boolean;
+  createdAt: string;
+}
+
+export interface EssayChat {
+  id: string;
+  essayId: string;
+  ownerEmail: string;
+  title: string;
+  createdAt: string;
+}
+
+export interface EssayMessage {
+  id: string;
+  chatId: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+}

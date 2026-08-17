@@ -1,0 +1,312 @@
+/* ============================================================
+   Essay Studio — Library + New Essay
+   ============================================================ */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.4rem;
+}
+.toolbar .search {
+  flex: 1 1 240px;
+  min-width: 200px;
+  position: relative;
+}
+.toolbar .search input {
+  padding-left: 2.2rem;
+}
+.searchIcon {
+  position: absolute;
+  left: 0.7rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* ---------- Essay card grid ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  box-shadow: 0 1px 0 rgb(var(--shadow-rgb) / 0.04), 0 18px 40px -30px rgb(var(--shadow-rgb) / 0.4);
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+  position: relative;
+  text-align: left;
+}
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--hairline-strong);
+  box-shadow: 0 2px 0 rgb(var(--shadow-rgb) / 0.05), 0 22px 44px -28px rgb(var(--shadow-rgb) / 0.5);
+}
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.collegeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--ink);
+  min-width: 0;
+}
+.collegeBadge .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ivy);
+  flex-shrink: 0;
+}
+.cardPrompt {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  margin-top: auto;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--hairline);
+  font-size: 0.76rem;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+}
+.metaItem { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+.statusPill {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--hairline-strong);
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.statusPill[data-status="in_progress"] { color: var(--ivy); border-color: color-mix(in srgb, var(--ivy) 40%, transparent); }
+.statusPill[data-status="final"] { color: var(--marigold-deep); border-color: color-mix(in srgb, var(--marigold) 50%, transparent); }
+
+.scoreChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--marigold-deep);
+}
+.scoreChip small { color: var(--ink-faint); font-weight: 500; }
+
+.deleteBtn {
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  padding: 0.25rem;
+  display: grid;
+  place-items: center;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.deleteBtn:hover { color: var(--clay); background: var(--paper-sunk); }
+
+/* ---------- Empty / gated states ---------- */
+.empty {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: var(--paper-raised);
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--r-lg);
+}
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: var(--paper-sunk);
+  color: var(--ivy);
+}
+.empty h3 { margin: 0 0 0.4rem; }
+.empty p { color: var(--ink-faint); margin: 0 auto 1.3rem; max-width: 42ch; }
+
+/* ============================================================
+   New Essay — prompt picker
+   ============================================================ */
+.segmented {
+  display: inline-flex;
+  gap: 0.3rem;
+  padding: 0.3rem;
+  background: var(--paper-sunk);
+  border-radius: 999px;
+  margin-bottom: 1.6rem;
+  flex-wrap: wrap;
+}
+.segBtn {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+.segBtn[data-active="true"] {
+  background: var(--paper-raised);
+  color: var(--ink);
+  box-shadow: 0 1px 0 rgb(var(--shadow-rgb) / 0.06), 0 8px 18px -14px rgb(var(--shadow-rgb) / 0.5);
+}
+
+.panel {
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  padding: 1.4rem;
+}
+.row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 620px) { .row2 { grid-template-columns: 1fr; } }
+
+/* prompt option list */
+.promptList { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.4rem; }
+.promptOption {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.promptOption:hover { border-color: var(--ivy-bright); }
+.promptOption[data-selected="true"] {
+  border-color: var(--ivy);
+  background: color-mix(in srgb, var(--ivy) 7%, var(--paper));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ivy) 35%, transparent);
+}
+.promptRadio {
+  width: 18px; height: 18px; border-radius: 999px; flex-shrink: 0; margin-top: 2px;
+  border: 2px solid var(--hairline-strong); display: grid; place-items: center;
+}
+.promptOption[data-selected="true"] .promptRadio { border-color: var(--ivy); }
+.promptOption[data-selected="true"] .promptRadio::after {
+  content: ""; width: 8px; height: 8px; border-radius: 999px; background: var(--ivy);
+}
+.promptBody { min-width: 0; }
+.promptText { font-size: 0.92rem; color: var(--ink); line-height: 1.5; }
+.promptTags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.sourceTag {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink-faint); border: 1px solid var(--hairline-strong); border-radius: 999px; padding: 0.15rem 0.5rem;
+}
+.sourceTag[data-verified="true"] { color: var(--ivy); border-color: color-mix(in srgb, var(--ivy) 40%, transparent); }
+.sourceTag a { color: inherit; text-decoration: underline; }
+
+.notice {
+  display: flex; gap: 0.5rem; align-items: flex-start;
+  font-size: 0.82rem; color: var(--ink-soft);
+  background: var(--paper-sunk); border: 1px solid var(--hairline);
+  border-radius: var(--r-md); padding: 0.7rem 0.9rem; margin-top: 0.9rem;
+}
+.noticeErr { color: var(--clay); }
+
+.footerBar {
+  display: flex; justify-content: flex-end; gap: 0.7rem; margin-top: 1.4rem;
+}
+
+/* year picker + contribution */
+.yearRow { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.yearRow label { font-size: 0.82rem; font-weight: 600; color: var(--ink-soft); }
+.yearSel {
+  font-family: var(--font-ui); font-size: 0.9rem; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-md); padding: 0.45rem 0.6rem;
+}
+
+.divider { display: flex; align-items: center; gap: 0.7rem; margin: 1.3rem 0 0.9rem; color: var(--ink-faint); font-size: 0.78rem; }
+.divider::before, .divider::after { content: ""; height: 1px; background: var(--hairline); flex: 1; }
+
+.contribBox {
+  margin-top: 0.8rem; padding: 1rem; border: 1px dashed var(--hairline-strong);
+  border-radius: var(--r-md); background: var(--paper-sunk);
+}
+.contribBox h4 { margin: 0 0 0.15rem; font-size: 0.92rem; }
+.contribBox p.sub { margin: 0 0 0.8rem; font-size: 0.8rem; color: var(--ink-faint); }
+
+/* extracurricular gate */
+.gateCard {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 2.6rem 1.6rem; background: var(--paper-raised);
+  border: 1px solid var(--hairline); border-radius: var(--r-lg);
+}
+.gateIcon {
+  display: grid; place-items: center; width: 60px; height: 60px; margin-bottom: 1rem;
+  border-radius: 50%; background: color-mix(in srgb, var(--marigold) 18%, var(--paper-sunk)); color: var(--marigold-deep);
+}
+.gateCard h2 { margin: 0 0 0.5rem; }
+.gateCard p { color: var(--ink-soft); max-width: 48ch; margin: 0 auto 0.6rem; line-height: 1.55; }
+.gateSteps {
+  display: flex; flex-direction: column; gap: 0.5rem; text-align: left;
+  margin: 1rem auto 1.4rem; max-width: 34ch;
+}
+.gateStep { display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.88rem; color: var(--ink-soft); }
+.gateStep svg { color: var(--ivy); flex-shrink: 0; margin-top: 2px; }
+.gateActions { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; }
+
+.gateBanner {
+  display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+  padding: 0.8rem 1rem; margin-bottom: 1.4rem;
+  background: color-mix(in srgb, var(--marigold) 12%, var(--paper-raised));
+  border: 1px solid color-mix(in srgb, var(--marigold) 40%, transparent);
+  border-radius: var(--r-md); font-size: 0.88rem; color: var(--ink);
+}
+.gateBanner .grow { flex: 1; min-width: 180px; }
+
+.spinner {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--ivy) 30%, transparent);
+  border-top-color: var(--ivy);
+  animation: essaySpin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes essaySpin { to { transform: rotate(360deg); } }
