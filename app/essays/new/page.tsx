@@ -7,10 +7,12 @@ import { useAuth } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
 import { Icon } from "@/components/Icon";
+import { Combobox, type ComboOption } from "@/components/Combobox";
 import { createEssay, getPrompts, insertPrompts, contributePrompt } from "@/lib/essays";
 import {
   COMMON_APP_PROMPTS,
   COMMON_APP_WORD_LIMIT,
+  COMMON_COLLEGES,
   currentCycle,
   recentCycles,
   defaultParts,
@@ -20,6 +22,32 @@ import type { EssayPrompt, EssayPromptSnapshot } from "@/lib/types";
 import s from "../essays.module.css";
 
 type Tab = "common" | "college" | "custom";
+
+/** Typeahead source: curated colleges first, then the live directory API. */
+async function searchColleges(query: string): Promise<ComboOption[]> {
+  const q = query.trim().toLowerCase();
+  const curated: ComboOption[] = COMMON_COLLEGES.filter((name) => name.toLowerCase().includes(q))
+    .slice(0, 8)
+    .map((name) => ({ value: name, label: name }));
+
+  let api: ComboOption[] = [];
+  try {
+    const res = await fetch(`/api/colleges?q=${encodeURIComponent(query)}`);
+    if (res.ok) {
+      const data = await res.json();
+      api = (data.colleges ?? []).map((c: { name: string; country: string; region: string }) => ({
+        value: c.name,
+        label: c.name,
+        hint: [c.region, c.country].filter(Boolean).join(", "),
+      }));
+    }
+  } catch {
+    /* ignore — curated results still show */
+  }
+
+  const seen = new Set(curated.map((c) => c.value.toLowerCase()));
+  return [...curated, ...api.filter((a) => !seen.has(a.value.toLowerCase()))];
+}
 
 interface Choice {
   promptId?: string;
@@ -248,8 +276,16 @@ export default function NewEssay() {
             </div>
             <div className={s.row2}>
               <div>
-                <label className="field-label" htmlFor="college">College / University</label>
-                <input id="college" className="input" placeholder="e.g. Stanford University" value={college} onChange={(e) => setCollege(e.target.value)} />
+                <label className="field-label">College / University</label>
+                <Combobox
+                  value={college}
+                  onChange={setCollege}
+                  placeholder="e.g. Stanford University"
+                  debounceMs={220}
+                  minChars={2}
+                  emptyHint="No matches — keep typing or use your own"
+                  getOptions={searchColleges}
+                />
               </div>
               <div>
                 <label className="field-label" htmlFor="major">Major / program <span className="muted">(optional)</span></label>

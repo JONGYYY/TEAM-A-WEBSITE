@@ -11,6 +11,27 @@ export function currentCycle(now = new Date()): string {
   return `${start}-${start + 1}`;
 }
 
+/** Curated well-known colleges shown instantly as you type (and an offline
+ *  fallback when the directory API is unreachable). */
+export const COMMON_COLLEGES: string[] = [
+  "Harvard University", "Stanford University", "Massachusetts Institute of Technology",
+  "Yale University", "Princeton University", "Columbia University", "University of Pennsylvania",
+  "Brown University", "Dartmouth College", "Cornell University", "Duke University",
+  "University of Chicago", "Northwestern University", "Johns Hopkins University",
+  "California Institute of Technology", "Vanderbilt University", "Rice University",
+  "University of California, Berkeley", "University of California, Los Angeles",
+  "University of California, San Diego", "University of California, Irvine",
+  "University of Michigan", "University of Virginia", "University of North Carolina at Chapel Hill",
+  "University of Texas at Austin", "Georgia Institute of Technology", "New York University",
+  "University of Southern California", "Carnegie Mellon University", "Boston University",
+  "Boston College", "Georgetown University", "University of Notre Dame",
+  "University of Florida", "University of Washington", "University of Illinois Urbana-Champaign",
+  "University of Wisconsin-Madison", "Purdue University", "Ohio State University",
+  "Pennsylvania State University", "University of Maryland, College Park", "Emory University",
+  "Tufts University", "Wake Forest University",
+  "Amherst College", "Williams College", "Pomona College", "Swarthmore College",
+];
+
 /** The last N application cycles (most recent first), for categorizing prompts. */
 export function recentCycles(n = 4, now = new Date()): string[] {
   const cur = currentCycle(now);
