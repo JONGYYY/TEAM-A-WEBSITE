@@ -50,6 +50,7 @@ async function tavilySearch(query: string): Promise<TavilyResult[]> {
       include_raw_content: true,
     }),
   });
+  if (res.status === 401 || res.status === 403) throw new Error("TAVILY_AUTH");
   if (!res.ok) throw new Error(`Tavily ${res.status}`);
   const data = await res.json();
   return (data?.results ?? []) as TavilyResult[];
@@ -84,8 +85,11 @@ export async function POST(req: Request) {
   let results: TavilyResult[] = [];
   try {
     results = await tavilySearch(query);
-  } catch {
-    return NextResponse.json({ prompts: [], error: "Search is temporarily unavailable. Try again or enter the prompt manually." });
+  } catch (e) {
+    const msg = e instanceof Error && e.message === "TAVILY_AUTH"
+      ? "Prompt search key was rejected — check that TAVILY_API_KEY is a valid Tavily key (starts with “tvly-”). You can still add the prompt manually."
+      : "Search is temporarily unavailable. Try again or enter the prompt manually.";
+    return NextResponse.json({ prompts: [], error: msg });
   }
   if (!results.length || !hasOpenAI()) {
     return NextResponse.json({ prompts: [], error: "No prompts found online — you can paste the prompt manually." });
