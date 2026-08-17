@@ -212,6 +212,67 @@
 .fbFill { height: 100%; border-radius: 999px; background: var(--ivy); transition: width 0.6s var(--ease-out); }
 .fbNote { font-size: 0.78rem; color: var(--ink-soft); line-height: 1.45; }
 
+/* suggestions (Appybara-style) */
+.fbSugHead { display: flex; align-items: center; justify-content: space-between; margin-top: 0.2rem; }
+.fbSugHead h5 { margin: 0; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+.fbToggle { border: none; background: transparent; color: var(--ivy); cursor: pointer; font-size: 0.76rem; font-weight: 600; }
+.fbToggle:hover { text-decoration: underline; }
+
+.fbSug {
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  background: var(--paper); padding: 0.7rem 0.8rem;
+  display: flex; flex-direction: column; gap: 0.4rem;
+  border-left: 3px solid var(--hairline-strong);
+}
+.fbSug[data-sev="high"] { border-left-color: var(--clay); }
+.fbSug[data-sev="medium"] { border-left-color: var(--marigold-deep); }
+.fbSug[data-sev="low"] { border-left-color: var(--ivy); }
+.fbSug[data-status="ignored"] { opacity: 0.5; }
+.fbSug[data-status="resolved"] { opacity: 0.62; }
+
+.fbSugTop { display: flex; align-items: center; gap: 0.45rem; }
+.fbSev {
+  font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.12rem 0.42rem; border-radius: 999px; font-weight: 700; color: #fff;
+}
+.fbSev[data-sev="high"] { background: var(--clay); }
+.fbSev[data-sev="medium"] { background: var(--marigold-deep); }
+.fbSev[data-sev="low"] { background: var(--ivy); }
+.fbSugCat { font-weight: 600; font-size: 0.82rem; color: var(--ink); }
+.fbSugState {
+  margin-left: auto; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--ink-faint); border: 1px solid var(--hairline-strong); border-radius: 999px; padding: 0.1rem 0.4rem;
+}
+.fbSugQuote {
+  text-align: left; border: none; background: transparent; cursor: pointer; width: 100%;
+  display: flex; gap: 0.35rem; align-items: flex-start;
+  font-size: 0.78rem; font-style: italic; color: var(--ink-soft);
+  border-left: 2px solid var(--hairline-strong); padding: 0.1rem 0 0.1rem 0.55rem;
+}
+.fbSugQuote svg { flex-shrink: 0; margin-top: 3px; }
+.fbSugQuote span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.fbSugQuote:hover { border-left-color: var(--ivy); color: var(--ink); }
+.fbSugIssue { margin: 0; font-size: 0.82rem; color: var(--ink); line-height: 1.45; }
+.fbSugFix { margin: 0; font-size: 0.82rem; color: var(--ink-soft); line-height: 1.45; }
+.fbSugFix b { color: var(--ink); }
+.fbSugRewrite { background: var(--paper-sunk); border: 1px solid var(--hairline); border-radius: var(--r-sm); padding: 0.5rem 0.6rem; }
+.fbSugRewriteLabel { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
+.fbSugRewrite p { margin: 0.25rem 0 0; font-size: 0.82rem; color: var(--ink); line-height: 1.5; }
+
+.fbSugActions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.1rem; }
+.fbSugBtn {
+  border: 1px solid var(--hairline-strong); background: var(--paper); color: var(--ink-soft); cursor: pointer;
+  font-size: 0.74rem; font-weight: 600; padding: 0.3rem 0.6rem; border-radius: var(--r-sm);
+  display: inline-flex; align-items: center; gap: 0.3rem;
+}
+.fbSugBtn:hover { border-color: var(--ivy-bright); color: var(--ink); }
+.fbSugApply {
+  border: none; background: var(--ivy); color: #fff; cursor: pointer;
+  font-size: 0.74rem; font-weight: 600; padding: 0.3rem 0.6rem; border-radius: var(--r-sm);
+  display: inline-flex; align-items: center; gap: 0.3rem;
+}
+.fbSugApply:hover { filter: brightness(1.05); }
+
 .fbBlock h5 { margin: 0 0 0.4rem; font-size: 0.82rem; }
 .fbBlock ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
 .fbBlock li { display: flex; gap: 0.45rem; font-size: 0.83rem; color: var(--ink-soft); line-height: 1.45; }

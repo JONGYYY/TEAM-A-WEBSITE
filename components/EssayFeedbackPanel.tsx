@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "./Icon";
-import type { EssayPromptSnapshot, EssayScore } from "@/lib/types";
+import type { EssayPromptSnapshot, EssayScore, EssaySuggestion, EssaySuggestionStatus } from "@/lib/types";
 import s from "@/app/essays/[id]/workspace.module.css";
 
 interface Props {
@@ -10,6 +10,8 @@ interface Props {
   getEssayText: () => string;
   score: EssayScore | null | undefined;
   onScored: (score: EssayScore) => void;
+  onJump: (text: string) => void;
+  onApply: (find: string, replacement: string) => void;
 }
 
 function barColor(n: number): string {
@@ -27,9 +29,10 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export function EssayFeedbackPanel({ promptSnapshot, getEssayText, score, onScored }: Props) {
+export function EssayFeedbackPanel({ promptSnapshot, getEssayText, score, onScored, onJump, onApply }: Props) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [showResolved, setShowResolved] = useState(false);
 
   async function review() {
     setBusy(true);
@@ -50,15 +53,34 @@ export function EssayFeedbackPanel({ promptSnapshot, getEssayText, score, onScor
     }
   }
 
+  const suggestions = score?.suggestions ?? [];
+  const openCount = useMemo(() => suggestions.filter((x) => (x.status ?? "open") === "open").length, [suggestions]);
+  const visible = showResolved ? suggestions : suggestions.filter((x) => (x.status ?? "open") === "open");
+
+  function setStatus(id: string, status: EssaySuggestionStatus) {
+    if (!score) return;
+    const next: EssayScore = {
+      ...score,
+      suggestions: (score.suggestions ?? []).map((x) => (x.id === id ? { ...x, status } : x)),
+    };
+    onScored(next);
+  }
+
+  function apply(sg: EssaySuggestion) {
+    if (!sg.rewrite) return;
+    onApply(sg.quote, sg.rewrite);
+    setStatus(sg.id, "resolved");
+  }
+
   if (!score) {
     return (
       <div className={s.fb}>
         <div className={s.fbEmpty}>
           <span className={s.emptyIcon}><Icon name="gauge" size={22} /></span>
           <h4>Structured feedback</h4>
-          <p>Get a scored review across prompt fit, structure, clarity, voice, and impact — with specific ways to improve.</p>
+          <p>Get a scored review across prompt fit, structure, clarity, voice, and impact — plus specific, line-by-line suggestions you can act on.</p>
           <button className="btn btn-primary" onClick={review} disabled={busy}>
-            {busy ? <><span className={s.spinnerBtn} /> Reviewing…</> : <><Icon name="spark" size={16} /> Review my essay</>}
+            {busy ? <><span className={s.spinnerBtn} /> Analyzing…</> : <><Icon name="spark" size={16} /> Analyze my essay</>}
           </button>
           {err && <p className="field-needs" style={{ marginTop: "0.8rem" }}>{err}</p>}
         </div>
@@ -72,9 +94,9 @@ export function EssayFeedbackPanel({ promptSnapshot, getEssayText, score, onScor
         <div className={s.fbScore}>{score.overall}<small>/100</small></div>
         <div className={s.fbOverallMeta}>
           <h4>Overall</h4>
-          <p>Reviewed {timeAgo(score.gradedAt)}</p>
+          <p>Analyzed {timeAgo(score.gradedAt)}</p>
         </div>
-        <button className="btn btn-ghost" style={{ marginLeft: "auto", padding: "0.5rem 0.8rem" }} onClick={review} disabled={busy} aria-label="Re-review">
+        <button className="btn btn-ghost" style={{ marginLeft: "auto", padding: "0.5rem 0.8rem" }} onClick={review} disabled={busy} aria-label="Re-analyze">
           {busy ? <span className={s.spinnerBtn} /> : <Icon name="refresh" size={16} />}
         </button>
       </div>
@@ -86,6 +108,52 @@ export function EssayFeedbackPanel({ promptSnapshot, getEssayText, score, onScor
           {c.note && <div className={s.fbNote}>{c.note}</div>}
         </div>
       ))}
+
+      {suggestions.length > 0 && (
+        <div className={s.fbSugHead}>
+          <h5>{openCount} suggestion{openCount === 1 ? "" : "s"}</h5>
+          <button className={s.fbToggle} onClick={() => setShowResolved((v) => !v)}>
+            {showResolved ? "Hide resolved" : "Show all"}
+          </button>
+        </div>
+      )}
+
+      {visible.map((sg) => {
+        const status = sg.status ?? "open";
+        return (
+          <div key={sg.id} className={s.fbSug} data-status={status} data-sev={sg.severity}>
+            <div className={s.fbSugTop}>
+              <span className={s.fbSev} data-sev={sg.severity}>{sg.severity}</span>
+              <span className={s.fbSugCat}>{sg.category}</span>
+              {status !== "open" && <span className={s.fbSugState}>{status}</span>}
+            </div>
+            <button className={s.fbSugQuote} onClick={() => onJump(sg.quote)} title="Find in essay">
+              <Icon name="quote" size={13} /> <span>{sg.quote}</span>
+            </button>
+            {sg.issue && <p className={s.fbSugIssue}>{sg.issue}</p>}
+            {sg.fix && <p className={s.fbSugFix}><b>Try:</b> {sg.fix}</p>}
+            {sg.rewrite && (
+              <div className={s.fbSugRewrite}>
+                <span className={s.fbSugRewriteLabel}>Suggested rewrite</span>
+                <p>{sg.rewrite}</p>
+              </div>
+            )}
+            <div className={s.fbSugActions}>
+              {sg.rewrite && status !== "resolved" && (
+                <button className={s.fbSugApply} onClick={() => apply(sg)}><Icon name="check" size={13} /> Apply</button>
+              )}
+              {status === "open" ? (
+                <>
+                  <button className={s.fbSugBtn} onClick={() => setStatus(sg.id, "resolved")}><Icon name="check" size={13} /> Resolve</button>
+                  <button className={s.fbSugBtn} onClick={() => setStatus(sg.id, "ignored")}>Ignore</button>
+                </>
+              ) : (
+                <button className={s.fbSugBtn} onClick={() => setStatus(sg.id, "open")}>Reopen</button>
+              )}
+            </div>
+          </div>
+        );
+      })}
 
       {score.strengths.length > 0 && (
         <div className={`${s.fbBlock} ${s.fbGood}`}>

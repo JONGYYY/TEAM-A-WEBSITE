@@ -119,6 +119,7 @@ export function EssayChatPanel({ essayId, ownerEmail, promptSnapshot, getEssayTe
           selection: sel,
           history,
           message: content,
+          profileSummary: profileSummary || "",
         }),
       });
       if (res.body) {

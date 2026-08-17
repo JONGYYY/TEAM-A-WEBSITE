@@ -10,10 +10,14 @@ interface ChatBody {
   selection?: string;
   history?: { role: "user" | "assistant"; content: string }[];
   message: string;
+  profileSummary?: string;
 }
 
 const SYSTEM = `You are an encouraging, sharp college-essay coach inside DreamCollege.ai.
 Your job is to help a high-school student write a stronger, MORE AUTHENTIC essay — not to write it for them.
+You are given the STUDENT PROFILE (their real background, activities, and awards). Use it:
+- When they ask for topics/ideas, brainstorm from their ACTUAL profile — cite specific activities, awards, or interests by name. Never invent achievements they don't have.
+- Ground advice in who they actually are; connect their real experiences to the prompt.
 Principles:
 - Guide with specific, actionable advice. Ask a pointed question when it helps them find their own material.
 - Preserve the student's voice; never replace their story with a generic one.
@@ -27,6 +31,8 @@ function buildContext(body: ChatBody): string {
   if (p.college) lines.push(`College: ${p.college}${p.major ? ` · Major: ${p.major}` : ""}`);
   if (p.promptText) lines.push(`Prompt: ${p.promptText}`);
   if (p.wordLimit) lines.push(`Word limit: ${p.wordLimit}`);
+  const profile = (body.profileSummary || "").trim();
+  lines.push(profile ? `\nSTUDENT PROFILE (their real background — brainstorm and ground advice in this):\n"""\n${profile.slice(0, 4000)}\n"""` : "\nSTUDENT PROFILE: (not filled in yet — if they ask you to brainstorm from their profile, tell them to add activities/awards in their DreamCollege profile first, then help from what they tell you.)");
   const essay = (body.essayText || "").trim();
   lines.push(essay ? `\nCurrent draft:\n"""\n${essay.slice(0, 6000)}\n"""` : "\nThe draft is currently empty.");
   if (body.selection?.trim()) lines.push(`\nThe student has highlighted this passage and is asking about it specifically:\n"""\n${body.selection.trim().slice(0, 2000)}\n"""`);

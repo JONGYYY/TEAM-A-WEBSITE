@@ -418,11 +418,28 @@ export interface EssayScoreCategory {
   note: string;
 }
 
+export type EssaySuggestionSeverity = "high" | "medium" | "low";
+export type EssaySuggestionStatus = "open" | "resolved" | "ignored";
+
+/** A specific, quote-anchored revision note (Appybara-style "suggestion"):
+ *  a verbatim excerpt from the draft, what's weak about it, and how to fix it. */
+export interface EssaySuggestion {
+  id: string;
+  category: string; // e.g. "Show, don't tell", "Cliché", "Prompt drift"
+  severity: EssaySuggestionSeverity;
+  quote: string; // verbatim excerpt copied from the essay (for locating in-editor)
+  issue: string; // one sentence on what's weak
+  fix: string; // one sentence on how to improve it
+  rewrite?: string | null; // optional improved passage the student can apply in one click
+  status?: EssaySuggestionStatus; // client-side: open (default) | resolved | ignored
+}
+
 export interface EssayScore {
   overall: number; // 0-100
   categories: EssayScoreCategory[];
   strengths: string[];
   improvements: string[];
+  suggestions?: EssaySuggestion[];
   gradedAt: string;
 }
 

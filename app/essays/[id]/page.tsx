@@ -284,8 +284,10 @@ export default function EssayWorkspace() {
             <Icon name="quote" size={15} /> Comments{comments.filter((c) => !c.resolved).length > 0 ? ` (${comments.filter((c) => !c.resolved).length})` : ""}
           </button>
         </div>
+        {/* All three panels stay mounted; we only toggle visibility so a
+            streaming Coach reply is never cancelled by switching tabs. */}
         <div className={s.sideBody}>
-          {sideTab === "chat" && (
+          <div style={{ display: sideTab === "chat" ? "contents" : "none" }}>
             <EssayChatPanel
               essayId={essay.id}
               ownerEmail={email}
@@ -295,16 +297,18 @@ export default function EssayWorkspace() {
               clearSelection={() => setSelection("")}
               profileSummary={summarizeProfileForEssay(profile)}
             />
-          )}
-          {sideTab === "feedback" && (
+          </div>
+          <div style={{ display: sideTab === "feedback" ? "contents" : "none" }}>
             <EssayFeedbackPanel
               promptSnapshot={snap}
               getEssayText={() => textRef.current}
               score={essay.score}
               onScored={onScored}
+              onJump={jumpTo}
+              onApply={applySuggestion}
             />
-          )}
-          {sideTab === "comments" && (
+          </div>
+          <div style={{ display: sideTab === "comments" ? "contents" : "none" }}>
             <EssayCommentsPanel
               comments={comments}
               pendingSelection={pendingComment}
@@ -315,7 +319,7 @@ export default function EssayWorkspace() {
               onJump={jumpTo}
               onApply={applySuggestion}
             />
-          )}
+          </div>
         </div>
       </aside>
     </div>

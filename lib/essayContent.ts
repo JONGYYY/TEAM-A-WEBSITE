@@ -83,28 +83,75 @@ export function summarizeProfileForEssay(p: StudentProfile): string {
   const name = [p.basic.firstName, p.basic.lastName].filter(Boolean).join(" ").trim();
   if (name) lines.push(`Name: ${name}`);
   if (p.basic.schoolYear) lines.push(`Grade: ${p.basic.schoolYear}`);
-  if (p.education.school) lines.push(`School: ${p.education.school}${p.education.state ? `, ${p.education.state}` : ""}`);
+  if (p.basic.gender) lines.push(`Gender: ${p.basic.gender}`);
+  if (p.education.school) lines.push(`School: ${p.education.school}${p.education.city ? `, ${p.education.city}` : ""}${p.education.state ? `, ${p.education.state}` : ""}${p.education.country && p.education.country !== "United States" ? `, ${p.education.country}` : ""}`);
   if (p.basic.firstGen === "Yes") lines.push("First-generation college student.");
+  if (p.education.gpaUnweighted != null) lines.push(`GPA: ${p.education.gpaUnweighted}${p.education.gpaWeighted != null ? ` unweighted / ${p.education.gpaWeighted} weighted` : ""}${p.education.gpaScale ? ` (${p.education.gpaScale})` : ""}`);
+  if (p.education.classRank != null && !p.education.rankUnknown) lines.push(`Class rank: ${p.education.classRank}${p.education.classSize != null ? ` of ${p.education.classSize}` : ""}`);
+
   const interests = [...new Set([...(p.intake.interests || []), ...(p.preference.interests || [])])].filter(Boolean);
   if (interests.length) lines.push(`Interests / intended focus: ${interests.join(", ")}`);
-  if (p.education.gpaUnweighted != null) lines.push(`GPA: ${p.education.gpaUnweighted}${p.education.gpaScale ? ` (${p.education.gpaScale})` : ""}`);
+  if (p.intake.primaryGoal) lines.push(`Primary goal: ${p.intake.primaryGoal.replace(/_/g, " ")}`);
+  if (p.intake.targetSelectivity) lines.push(`Target selectivity: ${p.intake.targetSelectivity.replace(/_/g, " ")}`);
 
-  const acts = (p.activities || []).filter((a) => a.position || a.organization || a.description).slice(0, 8);
+  const testing = summarizeTesting(p);
+  if (testing.length) lines.push(`Testing: ${testing.join("; ")}`);
+
+  const prefBits: string[] = [];
+  if (p.preference.setting?.length) prefBits.push(`setting: ${p.preference.setting.join(", ")}`);
+  if (p.preference.regions?.length) prefBits.push(`regions: ${p.preference.regions.join(", ")}`);
+  if (p.preference.institutionType?.length) prefBits.push(`type: ${p.preference.institutionType.join(", ")}`);
+  if (p.preference.campusCulture?.length) prefBits.push(`culture: ${p.preference.campusCulture.join(", ")}`);
+  if (prefBits.length) lines.push(`College preferences — ${prefBits.join("; ")}`);
+
+  const acts = (p.activities || []).filter((a) => a.position || a.organization || a.description).slice(0, 10);
   if (acts.length) {
     lines.push("\nActivities:");
     acts.forEach((a) => {
       const head = [a.position, a.organization].filter(Boolean).join(" — ");
-      lines.push(`- ${head || a.type}${a.description ? `: ${a.description}` : ""}`);
+      const commit = [
+        a.grades?.length ? `grades ${a.grades.join("/")}` : "",
+        a.hoursPerWeek != null ? `${a.hoursPerWeek} hrs/wk` : "",
+        a.weeksPerYear != null ? `${a.weeksPerYear} wks/yr` : "",
+      ].filter(Boolean).join(", ");
+      lines.push(`- ${head || a.type}${a.type && head ? ` [${a.type}]` : ""}${commit ? ` (${commit})` : ""}${a.description ? `: ${a.description}` : ""}`);
     });
   }
 
-  const awards = (p.awards || []).filter((a) => a.title).slice(0, 10);
+  const awards = (p.awards || []).filter((a) => a.title).slice(0, 12);
   if (awards.length) {
     lines.push("\nAwards / honors:");
-    awards.forEach((a) => lines.push(`- ${a.title}${a.recognition ? ` (${a.recognition})` : ""}`));
+    awards.forEach((a) => lines.push(`- ${a.title}${a.recognition ? ` — ${a.recognition}` : ""}${a.gradeLevel ? ` (grade ${a.gradeLevel})` : ""}`));
   }
 
   return lines.join("\n").trim();
+}
+
+/** Compact testing highlights across the systems the student actually reports. */
+function summarizeTesting(p: StudentProfile): string[] {
+  const t = p.testing;
+  if (!t) return [];
+  const out: string[] = [];
+  const has = (x: string) => (t.tests || []).includes(x as never);
+  if (has("SAT") && t.sat != null) out.push(`SAT ${t.sat}`);
+  if (has("ACT") && t.act != null) out.push(`ACT ${t.act}`);
+  if (has("AP")) {
+    const aps = (t.ap || []).filter((a) => a.subject).map((a) => `${a.subject}${a.score != null ? ` (${a.score})` : ""}`);
+    if (aps.length) out.push(`AP: ${aps.slice(0, 12).join(", ")}`);
+  }
+  if (has("IB")) {
+    const ibs = (t.ib || []).filter((a) => a.subject).map((a) => `${a.subject}${a.level ? ` ${a.level}` : ""}${a.score != null ? ` (${a.score})` : ""}`);
+    if (ibs.length) out.push(`IB: ${ibs.slice(0, 12).join(", ")}`);
+  }
+  if (has("A-Level")) {
+    const als = (t.aLevel || []).filter((a) => a.subject).map((a) => `${a.subject}${a.grade ? ` ${a.grade}` : ""}`);
+    if (als.length) out.push(`A-Level: ${als.slice(0, 12).join(", ")}`);
+  }
+  if (has("English") && t.english?.test) {
+    const sc = t.english.scores?.[t.english.test];
+    out.push(`${t.english.test}${sc?.overall != null ? ` ${sc.overall}` : ""}`);
+  }
+  return out;
 }
 
 /** Flattens a Tiptap JSON doc (or string) into plain text. */
