@@ -24,7 +24,13 @@ function isReasoningModel(model: string): boolean {
 
 /** Builds the token-limit + temperature fields correctly for the given model. */
 function tuning(model: string, maxTokens: number, temperature: number): Record<string, unknown> {
-  if (isReasoningModel(model)) return { max_completion_tokens: maxTokens };
+  if (isReasoningModel(model)) {
+    // gpt-5 spends completion budget on hidden REASONING tokens before any
+    // visible output. With a tight cap it exhausts the budget mid-reasoning and
+    // returns empty content (finish_reason "length"). Give real headroom so the
+    // actual answer isn't starved, and keep reasoning light to cut latency.
+    return { max_completion_tokens: Math.max(maxTokens, 8000), reasoning_effort: "low" };
+  }
   return { max_tokens: maxTokens, temperature };
 }
 
