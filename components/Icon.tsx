@@ -47,6 +47,10 @@ const PATHS: Record<string, React.ReactNode> = {
   quote: <><path d="M7 7H4v6h5V9c0-1.5 0-2 1-2.5M18 7h-3v6h5V9c0-1.5 0-2 1-2.5" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
+  thumbUp: <><path d="M7 21V10l5-7a2 2 0 0 1 2 2v4h5.2a2 2 0 0 1 2 2.3l-1.3 7A2 2 0 0 1 18 21H7Z" /><path d="M7 10H4a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h3" /></>,
+  thumbDown: <><path d="M17 3v11l-5 7a2 2 0 0 1-2-2v-4H4.8a2 2 0 0 1-2-2.3l1.3-7A2 2 0 0 1 6 3h11Z" /><path d="M17 14h3a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-3" /></>,
+  info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5h.01" /></>,
+  pencil: <><path d="M4 20h4L18 10l-4-4L4 16v4Z" /><path d="m13 7 4 4" /></>,
 };
 
 export function Icon({ name, size = 20, className }: { name: string; size?: number; className?: string }) {

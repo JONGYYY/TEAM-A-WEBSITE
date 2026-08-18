@@ -68,7 +68,10 @@ export function EssayCommentsPanel({ comments, pendingSelection, improving, clea
                 </button>
               </div>
               {c.quotedText && (
-                <div className={s.cmQuote} onClick={() => onJump(c.quotedText)} title="Jump to this text">“{c.quotedText}”</div>
+                <button type="button" className={s.cmQuote} onClick={() => onJump(c.quotedText)} title="Jump to this text in your essay">
+                  <Icon name="quote" size={12} />
+                  <span>{c.quotedText}</span>
+                </button>
               )}
               {ai ? (
                 <>

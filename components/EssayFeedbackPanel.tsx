@@ -20,6 +20,39 @@ function barColor(n: number): string {
   return "var(--clay)";
 }
 
+function scoreBand(n: number): string {
+  if (n >= 85) return "Excellent";
+  if (n >= 70) return "Strong";
+  if (n >= 55) return "Solid";
+  if (n >= 40) return "Developing";
+  return "Early draft";
+}
+
+/** Circular gauge for the overall score. */
+function ScoreRing({ value }: { value: number }) {
+  const radius = 30;
+  const circ = 2 * Math.PI * radius;
+  const clamped = Math.max(0, Math.min(100, value));
+  const offset = circ * (1 - clamped / 100);
+  return (
+    <div className={s.ring} role="img" aria-label={`Overall score ${clamped} out of 100`}>
+      <svg viewBox="0 0 72 72" width="72" height="72">
+        <circle className={s.ringTrack} cx="36" cy="36" r={radius} strokeWidth="7" fill="none" />
+        <circle
+          className={s.ringFill}
+          cx="36" cy="36" r={radius} strokeWidth="7" fill="none"
+          stroke={barColor(clamped)}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          transform="rotate(-90 36 36)"
+        />
+      </svg>
+      <div className={s.ringVal} style={{ color: barColor(clamped) }}>{clamped}</div>
+    </div>
+  );
+}
+
 function timeAgo(iso: string): string {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 1) return "just now";
@@ -91,9 +124,9 @@ export function EssayFeedbackPanel({ promptSnapshot, getEssayText, score, onScor
   return (
     <div className={s.fb}>
       <div className={s.fbOverall}>
-        <div className={s.fbScore}>{score.overall}<small>/100</small></div>
+        <ScoreRing value={score.overall} />
         <div className={s.fbOverallMeta}>
-          <h4>Overall</h4>
+          <h4>{scoreBand(score.overall)}</h4>
           <p>Analyzed {timeAgo(score.gradedAt)}</p>
         </div>
         <button className="btn btn-ghost" style={{ marginLeft: "auto", padding: "0.5rem 0.8rem" }} onClick={review} disabled={busy} aria-label="Re-analyze">

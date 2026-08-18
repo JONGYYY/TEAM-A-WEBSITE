@@ -8,7 +8,7 @@ import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
 import { Icon } from "@/components/Icon";
 import { Combobox, type ComboOption } from "@/components/Combobox";
-import { createEssay, getPrompts, insertPrompts, contributePrompt } from "@/lib/essays";
+import { createEssay, getPrompts, insertPrompts, contributePrompt, verifyPrompt } from "@/lib/essays";
 import {
   COMMON_APP_PROMPTS,
   COMMON_APP_WORD_LIMIT,
@@ -82,6 +82,14 @@ export default function NewEssay() {
   const [cText, setCText] = useState("");
   const [cLimit, setCLimit] = useState("");
   const [contribBusy, setContribBusy] = useState(false);
+
+  // Prompt feedback (thumbs up/down + correction)
+  const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
+  const [flagged, setFlagged] = useState<Set<string>>(new Set());
+  const [correctFor, setCorrectFor] = useState<string | null>(null);
+  const [correctText, setCorrectText] = useState("");
+  const [correctLimit, setCorrectLimit] = useState("");
+  const [correctBusy, setCorrectBusy] = useState(false);
 
   // Custom
   const [customText, setCustomText] = useState("");
@@ -174,6 +182,52 @@ export default function NewEssay() {
     }
   }
 
+  function selectPrompt(p: EssayPrompt) {
+    setChoice({ promptId: p.id, college: p.college || college.trim(), major: p.major, promptText: p.promptText, wordLimit: p.wordLimit, source: p.source });
+  }
+
+  function thumbUp(p: EssayPrompt) {
+    selectPrompt(p);
+    setConfirmed((s) => new Set(s).add(p.id));
+    setFlagged((s) => { const n = new Set(s); n.delete(p.id); return n; });
+    if (correctFor === p.id) setCorrectFor(null);
+    verifyPrompt(p.id).catch(() => {}); // best-effort (only affects prompts you created)
+  }
+
+  function thumbDown(p: EssayPrompt) {
+    setFlagged((s) => new Set(s).add(p.id));
+    setConfirmed((s) => { const n = new Set(s); n.delete(p.id); return n; });
+    setCorrectFor(p.id);
+    setCorrectText(p.promptText);
+    setCorrectLimit(p.wordLimit ? String(p.wordLimit) : "");
+    setChoice((c) => (c?.promptId === p.id ? null : c));
+  }
+
+  async function submitCorrection(orig: EssayPrompt) {
+    const text = correctText.trim();
+    if (text.length < 8) return;
+    setCorrectBusy(true);
+    try {
+      const p = await contributePrompt({
+        college: orig.college || college.trim(),
+        major: orig.major,
+        year,
+        promptText: text,
+        wordLimit: correctLimit ? Number(correctLimit) || null : null,
+        createdBy: email,
+      });
+      if (p) {
+        setSourced((prev) => [p, ...(prev ?? [])]);
+        selectPrompt(p);
+        setCorrectFor(null);
+        setCorrectText("");
+        setCorrectLimit("");
+      }
+    } finally {
+      setCorrectBusy(false);
+    }
+  }
+
   async function submitContribution() {
     const c = college.trim();
     const text = cText.trim();
@@ -249,6 +303,11 @@ export default function NewEssay() {
         lead="Pick a Common App prompt, pull this year's prompts for a college + major, or paste any prompt you need to answer."
       />
 
+      <div className={s.aiNote} role="note">
+        <Icon name="info" size={16} />
+        <span>Heads up: the AI coach won&apos;t write a single word of your essay. It only helps you brainstorm topics, structure your ideas, and pressure-test your draft — the writing stays 100% yours.</span>
+      </div>
+
       <div className={s.segmented} role="tablist" aria-label="Prompt type">
         {([["common", "Common App"], ["college", "College + Major"], ["custom", "Custom prompt"]] as [Tab, string][]).map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} className={s.segBtn} data-active={tab === id} onClick={() => { setTab(id); setChoice(null); }}>
@@ -312,28 +371,83 @@ export default function NewEssay() {
             {sourced && sourced.length > 0 && (
               <div className={s.promptList} style={{ marginTop: "1.2rem" }}>
                 {sourced.map((p) => {
-                  const selected = choice?.promptText === p.promptText;
+                  const selected = choice?.promptId === p.id || choice?.promptText === p.promptText;
+                  const isConfirmed = confirmed.has(p.id);
+                  const isFlagged = flagged.has(p.id);
                   return (
-                    <button key={p.id} type="button" className={s.promptOption} data-selected={selected}
-                      onClick={() => setChoice({ promptId: p.id, college: p.college || college.trim(), major: p.major, promptText: p.promptText, wordLimit: p.wordLimit, source: p.source })}>
-                      <span className={s.promptRadio} aria-hidden />
-                      <span className={s.promptBody}>
-                        <span className={s.promptText}>{p.promptText}</span>
-                        <span className={s.promptTags}>
-                          <span className={s.sourceTag} data-verified={p.status === "verified"}>
-                            <Icon name={p.source === "user" ? "users" : p.status === "verified" ? "check" : "warning"} size={11} />
-                            {p.source === "user" ? "Community" : p.status === "verified" ? "Verified" : "Needs review"}
+                    <div key={p.id} className={s.promptCard} data-selected={selected} data-flagged={isFlagged}>
+                      <button type="button" className={s.promptSelect} onClick={() => selectPrompt(p)} aria-pressed={selected}>
+                        <span className={s.promptRadio} aria-hidden />
+                        <span className={s.promptBody}>
+                          <span className={s.promptText}>{p.promptText}</span>
+                          <span className={s.promptTags}>
+                            <span className={s.sourceTag} data-verified={p.status === "verified"}>
+                              <Icon name={p.source === "user" ? "users" : p.status === "verified" ? "check" : "warning"} size={11} />
+                              {p.source === "user" ? "Community" : p.status === "verified" ? "Verified" : "Needs review"}
+                            </span>
+                            <span className={s.sourceTag}>{p.year}</span>
+                            {p.wordLimit && <span className={s.sourceTag}>{p.wordLimit} words</span>}
+                            {p.major && <span className={s.sourceTag}>{p.major}</span>}
+                            {p.sourceUrl && <span className={s.sourceTag}><a href={p.sourceUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Source</a></span>}
                           </span>
-                          <span className={s.sourceTag}>{p.year}</span>
-                          {p.wordLimit && <span className={s.sourceTag}>{p.wordLimit} words</span>}
-                          {p.major && <span className={s.sourceTag}>{p.major}</span>}
-                          {p.sourceUrl && <span className={s.sourceTag}><a href={p.sourceUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Source</a></span>}
                         </span>
-                      </span>
-                    </button>
+                      </button>
+                      <div className={s.promptVote} role="group" aria-label="Is this prompt correct?">
+                        <button
+                          type="button"
+                          className={s.voteBtn}
+                          data-active={isConfirmed}
+                          onClick={() => thumbUp(p)}
+                          aria-label="This prompt looks correct"
+                          title="Looks correct"
+                        >
+                          <Icon name="thumbUp" size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className={`${s.voteBtn} ${s.voteDown}`}
+                          data-active={isFlagged}
+                          onClick={() => thumbDown(p)}
+                          aria-label="This prompt is wrong — suggest the correct one"
+                          title="Not correct"
+                        >
+                          <Icon name="thumbDown" size={15} />
+                        </button>
+                      </div>
+
+                      {correctFor === p.id && (
+                        <div className={s.correctBox}>
+                          <div className={s.correctHead}><Icon name="pencil" size={14} /> What&apos;s the correct prompt for {p.college || college.trim()}?</div>
+                          <textarea
+                            className="input"
+                            style={{ minHeight: 80 }}
+                            value={correctText}
+                            onChange={(e) => setCorrectText(e.target.value)}
+                            placeholder="Paste the exact, correct prompt text…"
+                            aria-label="Correct prompt text"
+                          />
+                          <div className={s.correctRow}>
+                            <input
+                              className="input"
+                              style={{ maxWidth: 130 }}
+                              inputMode="numeric"
+                              placeholder="Word limit"
+                              value={correctLimit}
+                              onChange={(e) => setCorrectLimit(e.target.value.replace(/[^0-9]/g, ""))}
+                              aria-label="Word limit"
+                            />
+                            <span className={s.correctSpacer} />
+                            <button className="btn btn-ghost" onClick={() => setCorrectFor(null)}>Cancel</button>
+                            <button className="btn btn-primary" onClick={() => submitCorrection(p)} disabled={correctText.trim().length < 8 || correctBusy}>
+                              {correctBusy ? <><span className={s.spinner} /> Saving…</> : <>Save correct prompt</>}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
-                <p className="field-hint">Prompts marked “Needs review” were auto-extracted — double-check against the college&apos;s site.</p>
+                <p className="field-hint">Use <Icon name="thumbUp" size={11} /> / <Icon name="thumbDown" size={11} /> to tell us if a prompt is right. Prompts marked “Needs review” were auto-extracted — double-check against the college&apos;s site.</p>
               </div>
             )}
             {sourced && sourced.length === 0 && sourceErr && (

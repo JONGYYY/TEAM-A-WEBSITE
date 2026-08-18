@@ -135,6 +135,22 @@
   pointer-events: none;
 }
 
+/* Transient highlight when jumping from a comment / AI note to a passage. */
+.editorBody :global(.essay-flash) {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--marigold) 55%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--marigold) 55%, transparent);
+  animation: essayFlashFade 2s var(--ease-out) forwards;
+}
+@keyframes essayFlashFade {
+  0% { background: color-mix(in srgb, var(--marigold) 70%, transparent); }
+  70% { background: color-mix(in srgb, var(--marigold) 55%, transparent); }
+  100% { background: color-mix(in srgb, var(--marigold) 0%, transparent); box-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .editorBody :global(.essay-flash) { animation: none; background: color-mix(in srgb, var(--marigold) 40%, transparent); }
+}
+
 /* selection helper toolbar */
 .selBar {
   display: flex; gap: 0.4rem; align-items: center;
@@ -198,8 +214,14 @@
   padding: 0.9rem 1rem; border-radius: var(--r-lg);
   background: var(--paper-sunk); border: 1px solid var(--hairline);
 }
-.fbScore { font-family: var(--font-display); font-weight: 700; font-size: 2.2rem; line-height: 1; color: var(--marigold-deep); }
-.fbScore small { font-size: 0.9rem; color: var(--ink-faint); font-weight: 500; }
+.ring { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+.ringTrack { stroke: var(--hairline-strong); opacity: 0.5; }
+.ringFill { transition: stroke-dashoffset 0.9s var(--ease-out); }
+.ringVal {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; line-height: 1;
+}
+@media (prefers-reduced-motion: reduce) { .ringFill { transition: none; } }
 .fbOverallMeta { min-width: 0; }
 .fbOverallMeta h4 { margin: 0 0 0.15rem; }
 .fbOverallMeta p { margin: 0; font-size: 0.74rem; color: var(--ink-faint); font-family: var(--font-mono); }
@@ -300,10 +322,15 @@
 .cmResolve:hover { color: var(--ivy); }
 .cmQuote {
   font-size: 0.78rem; font-style: italic; color: var(--ink-soft);
-  border-left: 2px solid var(--hairline-strong); padding: 0.1rem 0 0.1rem 0.55rem; margin-bottom: 0.4rem;
-  cursor: pointer; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  border: none; border-left: 2px solid var(--hairline-strong); background: transparent; text-align: left; width: 100%;
+  padding: 0.1rem 0 0.1rem 0.55rem; margin-bottom: 0.4rem;
+  cursor: pointer; display: flex; gap: 0.35rem; align-items: flex-start;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
+.cmQuote svg { flex-shrink: 0; margin-top: 2px; opacity: 0.7; }
+.cmQuote span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .cmQuote:hover { border-left-color: var(--ivy); color: var(--ink); }
+.cmQuote:focus-visible { outline: 2px solid var(--ivy); outline-offset: 2px; border-radius: 2px; }
 .cmBody { font-size: 0.85rem; color: var(--ink); line-height: 1.5; }
 .cmSuggestion {
   margin-top: 0.5rem; padding: 0.55rem 0.6rem; border-radius: var(--r-sm);

@@ -1,12 +1,41 @@
 "use client";
 
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { Extension } from "@tiptap/core";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import s from "@/app/essays/[id]/workspace.module.css";
+
+/* Transient highlight so "jump to" from a comment/AI note visibly marks the
+   exact passage in the essay for a moment. */
+const flashKey = new PluginKey("essayFlash");
+const FlashHighlight = Extension.create({
+  name: "essayFlash",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: flashKey,
+        state: {
+          init: () => DecorationSet.empty,
+          apply(tr, old) {
+            const meta = tr.getMeta(flashKey) as { add?: { from: number; to: number }; clear?: boolean } | undefined;
+            if (meta?.clear) return DecorationSet.empty;
+            if (meta?.add) {
+              return DecorationSet.create(tr.doc, [Decoration.inline(meta.add.from, meta.add.to, { class: "essay-flash" })]);
+            }
+            return old.map(tr.mapping, tr.doc);
+          },
+        },
+        props: { decorations(state) { return flashKey.getState(state); } },
+      }),
+    ];
+  },
+});
 
 export interface EssayEditorHandle {
   /** Select the first occurrence of `text` and scroll it into view. */
@@ -61,6 +90,7 @@ export const EssayEditor = forwardRef<EssayEditorHandle, Props>(function EssayEd
       StarterKit.configure({ heading: { levels: [2, 3] } }),
       Placeholder.configure({ placeholder: placeholder || "Start writing your essay…" }),
       CharacterCount,
+      FlashHighlight,
     ],
     content: validDoc(initialContent),
     editorProps: { attributes: { "aria-label": "Essay editor", role: "textbox" } },
@@ -99,6 +129,11 @@ export const EssayEditor = forwardRef<EssayEditorHandle, Props>(function EssayEd
       const r = findRange(editor, text);
       if (!r) return false;
       editor.chain().focus().setTextSelection(r).scrollIntoView().run();
+      // Briefly highlight the passage so it's obvious what the note refers to.
+      editor.view.dispatch(editor.state.tr.setMeta(flashKey, { add: r }));
+      window.setTimeout(() => {
+        try { editor.view.dispatch(editor.view.state.tr.setMeta(flashKey, { clear: true })); } catch { /* editor gone */ }
+      }, 2000);
       return true;
     },
     replace(find: string, replacement: string) {

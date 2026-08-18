@@ -189,12 +189,17 @@ export function EssayChatPanel({ essayId, ownerEmail, promptSnapshot, getEssayTe
         <button className={s.iconBtn} onClick={newThread} aria-label="New chat thread" title="New chat"><Icon name="spark" size={16} /></button>
       </div>
 
+      <div className={s.disclaimer} role="note">
+        <Icon name="info" size={14} />
+        <span>Your coach helps you <strong>brainstorm and sharpen your own ideas</strong> — it will never write a single word of your essay for you.</span>
+      </div>
+
       <div className={s.msgs} ref={msgsRef}>
         {empty && (
           <div className={s.intro}>
             <span className={s.emptyIcon}><Icon name="sparkle" size={22} /></span>
             <h4>Your writing coach</h4>
-            <p>Ask for ideas, structure help, or feedback on any part of your draft. Highlight text in the editor to ask about it directly.</p>
+            <p>Ask for ideas, structure help, or a gut-check on any part of your draft. Highlight text in the editor to ask about it directly. The words stay yours — I only help you find them.</p>
           </div>
         )}
         {messages.map((m) => (
