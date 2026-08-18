@@ -1,6 +1,87 @@
 /* ============================================================
-   Essay Studio — Library + New Essay
+   Essay Studio — Hub + Library + New Essay
    ============================================================ */
+
+.hub { display: flex; flex-direction: column; }
+
+/* ---------- Entry cards (New Essay / Essay Review) ---------- */
+.entryCards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem;
+  margin-bottom: 2rem;
+}
+@media (max-width: 720px) { .entryCards { grid-template-columns: 1fr; } }
+.entryCard {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 1.5rem 1.6rem;
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  box-shadow: 0 1px 0 rgb(var(--shadow-rgb) / 0.04), 0 18px 40px -30px rgb(var(--shadow-rgb) / 0.4);
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.entryCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--hairline-strong);
+  box-shadow: 0 2px 0 rgb(var(--shadow-rgb) / 0.05), 0 24px 48px -26px rgb(var(--shadow-rgb) / 0.5);
+}
+.entryIcon {
+  display: grid; place-items: center;
+  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+}
+.entryIcon[data-tone="new"] { background: color-mix(in srgb, var(--ivy) 14%, var(--paper-sunk)); color: var(--ivy); }
+[data-theme="dark"] .entryIcon[data-tone="new"] { color: var(--ivy-bright); }
+.entryIcon[data-tone="review"] { background: color-mix(in srgb, var(--grade-high) 16%, var(--paper-sunk)); color: var(--grade-high); }
+.entryBody { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; flex: 1; }
+.entryTitle { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; color: var(--ink); }
+.entryDesc { font-size: 0.88rem; color: var(--ink-soft); line-height: 1.45; }
+.entryArrow { color: var(--ink-faint); flex-shrink: 0; transition: transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.entryCard:hover .entryArrow { color: var(--ivy); transform: translateX(3px); }
+
+/* ---------- View toggle ---------- */
+.viewToggle {
+  display: inline-flex; gap: 0.25rem; padding: 0.25rem;
+  background: var(--paper-sunk); border-radius: 999px;
+}
+.viewBtn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  border: none; background: transparent; color: var(--ink-soft);
+  font-family: var(--font-ui); font-weight: 600; font-size: 0.82rem;
+  padding: 0.4rem 0.75rem; border-radius: 999px; cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+.viewBtn[data-active="true"] {
+  background: var(--paper-raised); color: var(--ink);
+  box-shadow: 0 1px 0 rgb(var(--shadow-rgb) / 0.06), 0 8px 18px -14px rgb(var(--shadow-rgb) / 0.5);
+}
+
+/* ---------- Grouped sections ---------- */
+.groups { display: flex; flex-direction: column; gap: 2rem; }
+.group { display: flex; flex-direction: column; gap: 1rem; }
+.groupHead { display: flex; align-items: center; gap: 0.6rem; }
+.groupName {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; color: var(--ink);
+}
+.groupName svg { color: var(--ink-faint); }
+.groupCount {
+  font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-faint);
+  background: var(--paper-sunk); border-radius: 999px; padding: 0.15rem 0.55rem;
+}
+.dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ivy); flex-shrink: 0; }
+
+.cardActions { display: inline-flex; gap: 0.15rem; }
+.iconAction {
+  border: none; background: transparent; color: var(--ink-faint); cursor: pointer;
+  border-radius: var(--r-sm); padding: 0.25rem; display: grid; place-items: center;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.iconAction:hover { color: var(--ink); background: var(--paper-sunk); }
+.emptyActions { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; }
 
 .toolbar {
   display: flex;
@@ -113,7 +194,9 @@
   white-space: nowrap;
 }
 .statusPill[data-status="in_progress"] { color: var(--ivy); border-color: color-mix(in srgb, var(--ivy) 40%, transparent); }
-.statusPill[data-status="final"] { color: var(--marigold-deep); border-color: color-mix(in srgb, var(--marigold) 50%, transparent); }
+.statusPill[data-status="in_review"] { color: var(--marigold-deep); border-color: color-mix(in srgb, var(--marigold) 50%, transparent); }
+.statusPill[data-status="reviewed"], .statusPill[data-status="final"] { color: var(--grade-high); border-color: color-mix(in srgb, var(--grade-high) 45%, transparent); }
+.statusPill[data-status="archived"] { color: var(--ink-faint); border-color: var(--hairline-strong); }
 
 .scoreChip {
   display: inline-flex;
@@ -121,7 +204,7 @@
   gap: 0.15rem;
   font-family: var(--font-mono);
   font-weight: 700;
-  color: var(--marigold-deep);
+  color: var(--grade-high);
 }
 .scoreChip small { color: var(--ink-faint); font-weight: 500; }
 
@@ -308,6 +391,24 @@
 .correctHead svg { color: var(--clay); }
 .correctRow { display: flex; align-items: center; gap: 0.5rem; }
 .correctSpacer { flex: 1; }
+
+/* ---------- Essay Review upload ---------- */
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; gap: 0.55rem; text-align: center;
+  padding: 2.6rem 1.4rem; border: 1.5px dashed var(--hairline-strong); border-radius: var(--r-lg);
+  background: var(--paper-sunk); cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.dropzone:hover, .dropzone[data-active="true"] {
+  border-color: var(--ivy);
+  background: color-mix(in srgb, var(--ivy) 6%, var(--paper-sunk));
+}
+.dropzone:focus-visible { outline: 2px solid var(--ivy); outline-offset: 3px; }
+.dropzone p { margin: 0; color: var(--ink); line-height: 1.5; }
+.dropIcon {
+  display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 0.2rem;
+  border-radius: 50%; background: var(--paper-raised); color: var(--ivy);
+}
 
 .notice {
   display: flex; gap: 0.5rem; align-items: flex-start;

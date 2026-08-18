@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 import { getEssay, saveEssay, getComments, addComment, setCommentResolved, onEssayChange } from "@/lib/essays";
-import { summarizeProfileForEssay } from "@/lib/essayContent";
+import { summarizeProfileForEssay, isReviewStatus, statusLabel } from "@/lib/essayContent";
 import { EssayEditor, type EssayEditorHandle } from "@/components/EssayEditor";
 import { EssayChatPanel } from "@/components/EssayChatPanel";
 import { EssayFeedbackPanel } from "@/components/EssayFeedbackPanel";
@@ -18,20 +18,33 @@ import s from "./workspace.module.css";
 type SideTab = "chat" | "feedback" | "comments";
 
 const STATUS_OPTS: { id: EssayStatus; label: string }[] = [
-  { id: "draft", label: "Draft" },
-  { id: "in_progress", label: "In progress" },
-  { id: "final", label: "Final" },
+  { id: "draft", label: statusLabel("draft") },
+  { id: "in_progress", label: statusLabel("in_progress") },
+  { id: "in_review", label: statusLabel("in_review") },
+  { id: "reviewed", label: statusLabel("reviewed") },
+  { id: "archived", label: statusLabel("archived") },
 ];
 
-export default function EssayWorkspace() {
+export default function EssayWorkspacePage() {
+  return (
+    <Suspense fallback={<div className={s.wrap}><div style={{ gridColumn: "1 / -1", minHeight: "50vh" }} /></div>}>
+      <EssayWorkspace />
+    </Suspense>
+  );
+}
+
+function EssayWorkspace() {
   const params = useParams<{ id: string }>();
   const id = params?.id as string;
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get("tab");
   const { user, email, hydrated } = useAuth();
   const { profile } = useStore();
 
   const [essay, setEssay] = useState<Essay | null | undefined>(undefined);
   const [saveState, setSaveState] = useState<"" | "saving" | "saved">("");
   const [sideTab, setSideTab] = useState<SideTab>("chat");
+  const initialTabApplied = useRef(false);
   const [selection, setSelection] = useState("");
   const [comments, setComments] = useState<EssayComment[]>([]);
   const [pendingComment, setPendingComment] = useState("");
@@ -54,6 +67,17 @@ export default function EssayWorkspace() {
     });
     return () => { active = false; };
   }, [hydrated, id]);
+
+  // Open reviews straight to Feedback (or honor an explicit ?tab=).
+  useEffect(() => {
+    if (initialTabApplied.current || !essay) return;
+    initialTabApplied.current = true;
+    if (tabParam === "feedback" || tabParam === "comments" || tabParam === "chat") {
+      setSideTab(tabParam);
+    } else if (isReviewStatus(essay.status)) {
+      setSideTab("feedback");
+    }
+  }, [essay, tabParam]);
 
   const reloadComments = useCallback(() => {
     if (id) getComments(id).then(setComments);
@@ -211,9 +235,19 @@ export default function EssayWorkspace() {
         />
         <div className={s.topActions}>
           <span className={s.saveState}>{saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}</span>
+          {(essay.status === "draft" || essay.status === "in_progress") && (
+            <button className="btn btn-primary" style={{ padding: "0.45rem 0.8rem" }} onClick={() => { patch({ status: "in_review" }); setSideTab("feedback"); }}>
+              <Icon name="gauge" size={15} /> Submit for review
+            </button>
+          )}
+          {essay.status === "in_review" && (
+            <button className="btn btn-primary" style={{ padding: "0.45rem 0.8rem" }} onClick={() => patch({ status: "reviewed" })}>
+              <Icon name="check" size={15} /> Mark reviewed
+            </button>
+          )}
           <select
             style={{ fontFamily: "var(--font-ui)", fontSize: "0.85rem", padding: "0.4rem 0.55rem", border: "1px solid var(--hairline-strong)", borderRadius: "var(--r-md)", background: "var(--paper)", color: "var(--ink)" }}
-            value={essay.status}
+            value={essay.status === "final" ? "reviewed" : essay.status}
             onChange={(e) => patch({ status: e.target.value as EssayStatus })}
             aria-label="Essay status"
           >

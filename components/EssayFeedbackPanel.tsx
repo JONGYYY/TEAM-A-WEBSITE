@@ -15,9 +15,9 @@ interface Props {
 }
 
 function barColor(n: number): string {
-  if (n >= 75) return "var(--ivy)";
-  if (n >= 50) return "var(--marigold)";
-  return "var(--clay)";
+  if (n >= 75) return "var(--grade-high)";
+  if (n >= 50) return "var(--grade-mid)";
+  return "var(--grade-low)";
 }
 
 function scoreBand(n: number): string {

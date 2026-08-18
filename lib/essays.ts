@@ -10,6 +10,7 @@ import type {
   EssayPrompt,
   EssayPart,
   EssayScore,
+  EssayStatus,
   EssayPromptSnapshot,
 } from "./types";
 
@@ -127,6 +128,9 @@ export async function createEssay(input: {
   promptSnapshot: EssayPromptSnapshot;
   promptId?: string;
   parts: EssayPart[];
+  status?: EssayStatus;
+  content?: unknown;
+  wordCount?: number;
 }): Promise<{ essay?: Essay; error?: string }> {
   const now = new Date().toISOString();
   const row = {
@@ -135,11 +139,11 @@ export async function createEssay(input: {
     prompt_id: input.promptId ?? null,
     prompt_snapshot: input.promptSnapshot,
     title: input.title,
-    content: {},
+    content: input.content ?? {},
     parts: input.parts,
-    word_count: 0,
+    word_count: input.wordCount ?? 0,
     score: null,
-    status: "draft",
+    status: input.status ?? "draft",
     created_at: now,
     updated_at: now,
   };
@@ -170,6 +174,16 @@ export async function deleteEssay(id: string): Promise<void> {
   await supabase.from("essays").delete().eq("id", id);
   notifyEssayChange();
 }
+
+/** Move an essay to a new stage in the draft -> review workflow. */
+export async function setEssayStatus(id: string, status: EssayStatus): Promise<void> {
+  await supabase.from("essays").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+  notifyEssayChange();
+}
+
+export const submitForReview = (id: string) => setEssayStatus(id, "in_review");
+export const markReviewed = (id: string) => setEssayStatus(id, "reviewed");
+export const archiveEssay = (id: string) => setEssayStatus(id, "archived");
 
 /* --------------------------------- prompts --------------------------------- */
 

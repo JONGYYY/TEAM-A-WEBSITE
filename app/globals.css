@@ -22,6 +22,11 @@
   --shadow-rgb: 75 53 204;
   --focus-rgb: 107 80 234;
 
+  /* grading scale — green / yellow / red (never brand purple) */
+  --grade-high: #2f9e6b;
+  --grade-mid: #d4880f;
+  --grade-low: #e05555;
+
   /* semantic admission bands */
   --likely: #4b35cc;
   --target: #f5a623;
@@ -68,6 +73,10 @@
   --hairline-strong: #3a3070;
   --shadow-rgb: 0 0 0;
   --focus-rgb: 168 146 255;
+
+  --grade-high: #43cf8b;
+  --grade-mid: #f5b84a;
+  --grade-low: #ff7070;
 
   --likely: #8b70ff;
   --target: #f5b84a;

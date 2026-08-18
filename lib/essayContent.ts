@@ -1,4 +1,4 @@
-import type { EssayPart, StudentProfile } from "./types";
+import type { EssayPart, EssayStatus, StudentProfile } from "./types";
 
 /**
  * The application cycle we tag newly-sourced/selected prompts with. Prompts are
@@ -74,6 +74,43 @@ export function countWords(doc: unknown): number {
   const text = extractText(doc).trim();
   if (!text) return 0;
   return text.split(/\s+/).filter(Boolean).length;
+}
+
+/** Convert pasted / extracted plain text into a Tiptap document (paragraphs). */
+export function textToDoc(text: string): unknown {
+  const paras = text
+    .replace(/\r\n/g, "\n")
+    .split(/\n{2,}|\n/)
+    .map((line) => line.trim())
+    .filter((line, i, arr) => line.length > 0 || (i > 0 && arr[i - 1].length > 0)); // drop leading/consecutive blanks
+  const content = (paras.length ? paras : [""]).map((line) =>
+    line
+      ? { type: "paragraph", content: [{ type: "text", text: line }] }
+      : { type: "paragraph" },
+  );
+  return { type: "doc", content };
+}
+
+/* --------------------------- status buckets ------------------------------- */
+/** Statuses that live in the "Essay Drafts" section (actively being written). */
+export function isDraftStatus(s: EssayStatus): boolean {
+  return s === "draft" || s === "in_progress";
+}
+/** Statuses that live in the "Essay Reviews" section. */
+export function isReviewStatus(s: EssayStatus): boolean {
+  return s === "in_review" || s === "reviewed" || s === "final";
+}
+/** Friendly label for any essay status. */
+export function statusLabel(s: EssayStatus): string {
+  switch (s) {
+    case "draft": return "Draft";
+    case "in_progress": return "In progress";
+    case "in_review": return "In review";
+    case "reviewed": return "Reviewed";
+    case "final": return "Final";
+    case "archived": return "Archived";
+    default: return s;
+  }
 }
 
 /** A compact, human-readable summary of the student's profile for the AI to

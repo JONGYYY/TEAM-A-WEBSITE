@@ -408,7 +408,7 @@ export interface EssayPart {
   done: boolean;
 }
 
-export type EssayStatus = "draft" | "in_progress" | "final";
+export type EssayStatus = "draft" | "in_progress" | "in_review" | "reviewed" | "final" | "archived";
 
 /** One category bar in the structured feedback (Aslo-style). */
 export interface EssayScoreCategory {

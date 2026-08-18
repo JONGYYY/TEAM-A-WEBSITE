@@ -14,9 +14,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, hydrated } = useAuth();
   const [mac, setMac] = useState(true);
   const [navOpen, setNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     setMac(/Mac|iPhone|iPad/.test(navigator.platform));
+    setCollapsed(localStorage.getItem("dc:navCollapsed") === "1");
   }, []);
 
   useEffect(() => {
@@ -24,18 +26,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => { document.body.style.overflow = ""; };
   }, [navOpen]);
 
+  function toggleCollapsed() {
+    setCollapsed((v) => {
+      const next = !v;
+      localStorage.setItem("dc:navCollapsed", next ? "1" : "0");
+      return next;
+    });
+  }
+
   function openPalette() {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, ctrlKey: true }));
   }
 
   return (
-    <div className={s.shell}>
+    <div className={s.shell} data-collapsed={collapsed}>
       <ScrollProgress />
-      <div className="no-print"><Sidebar open={navOpen} onClose={() => setNavOpen(false)} /></div>
+      <div className="no-print"><Sidebar open={navOpen} onClose={() => setNavOpen(false)} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} /></div>
       <div className={s.main}>
         <div className={`${s.topbar} no-print`}>
           <button className={s.menuBtn} onClick={() => setNavOpen(true)} aria-label="Open menu">
             <Icon name="menu" size={18} />
+          </button>
+          <button className={s.railToggle} onClick={toggleCollapsed} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-pressed={collapsed} title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+            <Icon name={collapsed ? "arrow" : "menu"} size={18} />
           </button>
           <span className={`${s.topbarSpacer} eyebrow`}>
             {hydrated && user ? `Signed in · ${user.name}` : "Guest mode"}

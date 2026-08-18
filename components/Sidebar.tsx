@@ -66,7 +66,7 @@ const COUNSELOR_NAV: NavSection[] = [
   },
 ];
 
-export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
+export function Sidebar({ open = false, onClose, collapsed = false, onToggleCollapsed }: { open?: boolean; onClose?: () => void; collapsed?: boolean; onToggleCollapsed?: () => void }) {
   const pathname = usePathname();
   const { profile, hydrated } = useStore();
   const { role, hydrated: authHydrated } = useAuth();
@@ -93,19 +93,33 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
     <>
       <div className={`${s.overlay} ${open ? s.overlayOpen : ""}`} onClick={onClose} aria-hidden="true" />
       <aside className={s.sidebar} data-open={open}>
-      <Link href="/dashboard" className={s.brand}>
-        <span className={s.brandMark}>
-          <Icon name="grad" size={20} />
-        </span>
-        <span>
-          <span className={s.brandName}>DreamCollege</span>
-          <br />
-          <span className={s.brandSub}>College & Career</span>
-        </span>
+      <div className={s.brand}>
+        <Link href="/dashboard" className={s.brandLink}>
+          <span className={s.brandMark}>
+            <Icon name="grad" size={20} />
+          </span>
+          <span className={s.brandText}>
+            <span className={s.brandName}>DreamCollege</span>
+            <br />
+            <span className={s.brandSub}>College & Career</span>
+          </span>
+        </Link>
+        {onToggleCollapsed && (
+          <button
+            type="button"
+            className={s.collapseBtn}
+            onClick={onToggleCollapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-pressed={collapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <span style={{ display: "inline-flex", transform: collapsed ? "none" : "rotate(180deg)" }}><Icon name="arrow" size={16} /></span>
+          </button>
+        )}
         <button type="button" className={s.closeBtn} onClick={(e) => { e.preventDefault(); onClose?.(); }} aria-label="Close menu">
           <Icon name="x" size={18} />
         </button>
-      </Link>
+      </div>
 
       {NAV.map((section) => (
         <div key={section.label} className={s.navSection}>
@@ -119,10 +133,11 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
               <Link
                 key={item.href}
                 href={item.href}
+                title={item.name}
                 className={`${s.navItem} ${active ? s.active : ""} ${locked ? s.locked : ""}`}
               >
                 <Icon name={item.icon} size={18} />
-                {item.name}
+                <span className={s.navText}>{item.name}</span>
                 {locked && <Icon name="lock" size={14} className={s.lock} />}
               </Link>
             );
